@@ -16,16 +16,6 @@ gspread API
 https://gspread.readthedocs.io/en/latest/index.html
 """
 
-"""
-including short names:
-
-dictionary of codepost short names : comment
-set of all short names in sheet
-option to delete or ignore codepost short names not in sheet
-    difference of sets
-
-"""
-
 # ===========================================================================
 
 import click
