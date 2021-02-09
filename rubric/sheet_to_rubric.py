@@ -5,9 +5,6 @@ Imports a codePost rubric from a Google Sheet.
 Requires a pre-existing course and assignments. Will replace the entire rubric.
 Assignments on codePost will only be changed if it is present in the sheet.
 
-Share sheet with
-codepost-rubrics-id@codepost-rubrics.iam.gserviceaccount.com
-
 GitHub repo:
 https://github.com/josephlou5/codepost-rubric-import-export
 
@@ -296,7 +293,7 @@ def sheet_to_rubric(course_period, sheet_name, num_assignments, testing, overrid
         logger.info('Running as test: Opening Joseph\'s Course')
         course = get_course("Joseph's Course", 'S2021')
     else:
-        logger.info('Accessing COS126 course for period "{}"...', course_period)
+        logger.info('Accessing COS126 course for period "{}"', course_period)
         course = get_126_course(course_period)
     if course is None:
         return

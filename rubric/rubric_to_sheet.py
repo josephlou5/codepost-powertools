@@ -2,9 +2,6 @@
 rubric_to_sheet.py
 Exports a codePost rubric to a Google Sheet.
 
-Share sheet with
-codepost-rubrics-id@codepost-rubrics.iam.gserviceaccount.com
-
 GitHub repo:
 https://github.com/josephlou5/codepost-rubric-import-export
 
@@ -385,9 +382,9 @@ def rubric_to_sheet(course_period, sheet_name, num_assignments, testing, instanc
 
     \b
     Args:
-        course_period (str): The period of the COS126 course to import to.
-        sheet_name (str): The name of the sheet to pull the rubrics from.
-        num_assignments (int): The number of assignments to get from the sheet.
+        course_period (str): The period of the COS126 course to export from.
+        sheet_name (str): The name of the sheet to import the rubrics to.
+        num_assignments (int): The number of assignments to get from the course.
             Default is ALL. \f
         testing (bool): Whether to run as a test.
             Default is False.
@@ -409,7 +406,7 @@ def rubric_to_sheet(course_period, sheet_name, num_assignments, testing, instanc
     if g_client is None:
         return
 
-    logger.info('Accessing COS126 course for period "{}"...', course_period)
+    logger.info('Accessing COS126 course for period "{}"', course_period)
     course = get_126_course(course_period)
     if course is None:
         return
