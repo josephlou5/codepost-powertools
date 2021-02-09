@@ -1,3 +1,9 @@
+# codepost configuration file
+codepost-config.yaml
+
+# google sheets service account config file
+service_account.json
+
 # PyCharm editor configuration
 .idea
 
