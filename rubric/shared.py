@@ -21,16 +21,6 @@ import gspread
 
 SERVICE_ACCOUNT_FILE = 'service_account.json'
 
-# ===========================================================================
-
-# available courses (for josephlou@princeton.edu)
-COURSE_IDS = {
-    'COS126 S2020': 673,
-    'COS126 F2020': 1325,
-    'COS126 S2021': 1574,
-    'testing': 1721,
-}
-
 
 # ===========================================================================
 
@@ -123,6 +113,7 @@ def open_sheet(g_client, sheet_name) -> gspread.models.Spreadsheet:
     except gspread.exceptions.SpreadsheetNotFound:
         logger.critical('Spreadsheet "{}" not found', sheet_name)
     return sheet
+
 
 # ===========================================================================
 
