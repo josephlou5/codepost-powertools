@@ -34,7 +34,7 @@ SHEET_HEADERS = {
     'category': 'Category',
     'max points': 'Max',
 
-    'short name': 'Short Name',
+    'name': 'Name',
     'tier': 'Tier',
     'point delta': 'Points',
     'caption': 'Grader Caption',
@@ -83,8 +83,8 @@ def get_assignment_rubric(worksheet) -> dict:
 
         # get comment info
 
-        # if short name does not exist, default is None
-        name = row.get(SHEET_HEADERS['short name'], None)
+        # if name does not exist, default is None
+        name = row.get(SHEET_HEADERS['name'], None)
         # if tier does not exist, do not add it
         tier = row.get(SHEET_HEADERS['tier'], None)
         # if points does not exist, default is 0

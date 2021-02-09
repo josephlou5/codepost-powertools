@@ -34,9 +34,9 @@ WHITE = (255, 255, 255)
 HEADERS = [
     # A  B           C
     '', 'Category', 'Max',
-    # D        E                 F              G               H
-    'Points', 'Grader Caption', 'Explanation', 'Instructions', 'Template?',
-    # I           J        K    L          M
+    # D      E         F                 G              H               I
+    'Name', 'Points', 'Grader Caption', 'Explanation', 'Instructions', 'Template?',
+    # J           K        L    M          N
     'Instances', 'Upvote', '', 'Downvote', ''
 ]
 
@@ -82,13 +82,14 @@ def get_assignment_rubric(assignment) -> dict:
         for comment in category.rubricComments:
             # get comment info
             c_id = comment.id
+            name = comment.name
             points = -1 * comment.pointDelta
             text = comment.text
             explanation = comment.explanation
             instruction = comment.instructionText
             template = 'Yes' if comment.templateTextOn else ''
 
-            values = [c_id, c_name, max_points, points, text, explanation, instruction, template]
+            values = [c_id, c_name, max_points, name, points, text, explanation, instruction, template]
 
             data[c_id] = values
 
@@ -257,18 +258,19 @@ def display_assignment_comments(worksheet, values):
     worksheet.format_cell(f'B3:{rows}', vertical_align='MIDDLE', wrap='WRAP')
 
     worksheet.set_col_width('C', 50)  # max category points
-    worksheet.set_col_width('D', 75)  # points
-    worksheet.set_col_width('E', 200)  # grader caption
-    worksheet.set_col_width('F', 650)  # explanation
-    worksheet.set_col_width('G', 300)  # instructions
-    worksheet.set_col_width('J:M', 75)  # instances columns
+    worksheet.set_col_width('D', 150)  # name
+    worksheet.set_col_width('E', 75)  # points
+    worksheet.set_col_width('F', 200)  # grader caption
+    worksheet.set_col_width('G', 650)  # explanation
+    worksheet.set_col_width('H', 300)  # instructions
+    worksheet.set_col_width('J:N', 75)  # instances columns
 
-    worksheet.merge_cells('J2:K2')
-    worksheet.merge_cells('L2:M2')
+    worksheet.merge_cells('K2:L2')
+    worksheet.merge_cells('M2:N2')
 
     # hide id and explanation columns
     worksheet.hide_col('A')
-    worksheet.hide_col('F')
+    worksheet.hide_col('G')
 
     # update worksheet
     worksheet.update()
