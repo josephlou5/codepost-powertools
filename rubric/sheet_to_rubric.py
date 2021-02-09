@@ -103,7 +103,7 @@ def get_assignment_rubric(worksheet) -> dict:
 
         # add tier to comment text
         if tier is not None and tier != '':
-            text = TIER_FMT.format(tier, text=text)
+            text = TIER_FMT.format(tier=tier, text=text)
 
         comment = {
             'name': name,
@@ -145,7 +145,10 @@ def get_all_rubric_comments(course, sheet, num_assignments=None) -> dict:
         worksheet = Worksheet(w)
 
         # check assignment id in A1
-        a_id = int(worksheet.get_cell('A1').value)
+        try:
+            a_id = int(worksheet.get_cell('A1').value)
+        except ValueError:
+            continue
 
         if a_id in a_ids:
             a_name = codepost.assignment.retrieve(a_id).name
