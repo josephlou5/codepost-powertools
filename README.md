@@ -36,3 +36,10 @@ Imports a codePost rubric from a Google Sheet. Takes in the following command-li
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
   - If running as a test and `num_assignments` is not given, `num_assignments` is set to 1.
 - `-o`/`--override`: Whether to override rubrics of assignments if submissions exist. Default is `False`.
+
+### assign_failed.py
+Assign all submissions that fail any tests to a grader. Takes in the following command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
+- `grader`: The grader to assign the submissions to.
+- `testing`: Whether to run as a test. Default is `False`.

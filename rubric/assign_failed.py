@@ -63,7 +63,7 @@ def assign_failed(course_period, assignment_name, grader, testing):
 
     \b
     Args:
-        course_period (str): The period of the COS126 course to import to.
+        course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment.
         grader (str): The grader to assign the submissions to. \f
         testing (bool): Whether to run as a test.
