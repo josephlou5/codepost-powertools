@@ -42,4 +42,4 @@ Assign all submissions that fail any tests to a grader. Takes in the following c
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
 - `grader`: The grader to assign the submissions to.
-- `testing`: Whether to run as a test. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
