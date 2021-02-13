@@ -235,6 +235,10 @@ def display_assignment_comments(worksheet, values):
 
     worksheet.format_cell('A1', font_family='Fira Code', update=True)
 
+    # if no values, add dummy row to avoid freezing all 2 rows error
+    if rows == 2:
+        values.append([''])
+
     # add values
     logger.debug('Setting values of the sheet')
     try:
