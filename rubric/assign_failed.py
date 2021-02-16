@@ -58,7 +58,7 @@ def validate_grader(course, grader) -> bool:
 @click.argument('grader', type=str, required=True)
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
-def assign_failed(course_period, assignment_name, grader, testing):
+def main(course_period, assignment_name, grader, testing):
     """Assign all submissions that fail any tests to a grader.
 
     \b
@@ -122,4 +122,4 @@ def assign_failed(course_period, assignment_name, grader, testing):
 # ===========================================================================
 
 if __name__ == '__main__':
-    assign_failed()
+    main()

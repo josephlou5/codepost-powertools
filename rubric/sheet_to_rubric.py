@@ -251,7 +251,7 @@ def create_all_rubrics(rubrics, override_rubric=False):
               help='Whether to run as a test. Default is False.')
 @click.option('-o', '--override', is_flag=True, default=False, flag_value=True,
               help='Whether to override rubrics of assignments. Default is False.')
-def sheet_to_rubric(course_period, sheet_name, num_assignments, testing, override):
+def main(course_period, sheet_name, num_assignments, testing, override):
     """
     Imports a codePost rubric from a Google Sheet.
 
@@ -312,4 +312,4 @@ def sheet_to_rubric(course_period, sheet_name, num_assignments, testing, overrid
 # ===========================================================================
 
 if __name__ == '__main__':
-    sheet_to_rubric()
+    main()

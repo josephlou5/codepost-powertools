@@ -382,7 +382,7 @@ def display_all_instances(sheet, instances):
               help='Whether to run as a test. Default is False.')
 @click.option('-i', '--instances', is_flag=True, default=False, flag_value=True,
               help='Whether to count instances of rubric comments. Default is False.')
-def rubric_to_sheet(course_period, sheet_name, num_assignments, testing, instances):
+def main(course_period, sheet_name, num_assignments, testing, instances):
     """
     Exports a codePost rubric to a Google Sheet.
 
@@ -449,4 +449,4 @@ def rubric_to_sheet(course_period, sheet_name, num_assignments, testing, instanc
 # ===========================================================================
 
 if __name__ == '__main__':
-    rubric_to_sheet()
+    main()
