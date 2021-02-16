@@ -1,6 +1,6 @@
 """
 assign_failed.py
-Assign all submissions that fail any tests to a grader.
+Assign all submissions that fail tests to a grader.
 
 GitHub repo:
 https://github.com/josephlou5/codepost-rubric-import-export
@@ -52,20 +52,79 @@ def validate_grader(course, grader) -> bool:
 
 # ===========================================================================
 
+def get_failed_submissions(assignment, cutoff, search_all) -> (list, int):
+    """Gets all the failed submissions from an assignment.
+
+    Args:
+        assignment (codepost.models.assignments.Assignment): The assignment.
+        cutoff (int): The number of tests that denote "passed".
+        search_all (bool): Whether to search all submissions, not just those with no grader.
+
+    Returns:
+        (list, int): The failed submission ids and the number of failed submissions.
+    """
+
+    failed_submissions = list()
+
+    submissions = assignment.list_submissions()
+    for submission in submissions:
+        if submission.isFinalized: continue
+        # only submissions that have no grader
+        if not search_all and submission.grader is not None: continue
+        if cutoff is None:
+            # if fail one test, add
+            for t in submission.tests:
+                if not t.passed:
+                    failed_submissions.append(submission.id)
+                    break
+        else:
+            # if passed less than cutoff, add
+            if len(list(filter(lambda t: t.passed, submission.tests))) < cutoff:
+                failed_submissions.append(submission.id)
+
+    num_failed = len(failed_submissions)
+    logger.debug('Found {} failed submissions', num_failed)
+
+    return failed_submissions, num_failed
+
+
+# ===========================================================================
+
+def assign_submissions(grader, submissions):
+    """Assign submissions to a grader.
+
+    Args:
+        grader (str): The grader to assign to. Assumed to be a valid grader.
+        submissions (list): The submission ids.
+    """
+
+    logger.info('Assigning submissions to grader')
+    for s_id in submissions:
+        codepost.submission.update(s_id, grader=grader)
+
+
+# ===========================================================================
+
 @click.command()
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
 @click.argument('grader', type=str, required=True)
+@click.argument('cutoff', type=int, required=False)
+@click.option('-sa', '--search-all', is_flag=True, default=False, flag_value=True,
+              help='Whether to search all submissions, not just those with no grader. Default is False.')
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
-def main(course_period, assignment_name, grader, testing):
-    """Assign all submissions that fail any tests to a grader.
+def main(course_period, assignment_name, grader, cutoff, search_all, testing):
+    """Assign all submissions that fail tests to a grader.
 
     \b
     Args:
         course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment.
-        grader (str): The grader to assign the submissions to. \f
+        grader (str): The grader to assign the submissions to.
+        cutoff (int): The number of tests that denote "passed". \f
+        search_all (bool): Whether to search all submissions, not just those with no grader.
+            Default is False.
         testing (bool): Whether to run as a test.
             Default is False.
     """
@@ -89,32 +148,22 @@ def main(course_period, assignment_name, grader, testing):
 
     validated = validate_grader(course, grader)
     if not validated:
-        logger.error(f'Grader "{grader}" is not a valid grader in this course')
+        logger.error('Grader "{}" is not a valid grader in this course', grader)
         return
     logger.info('Grader validated')
 
-    logger.info(f'Getting "{assignment_name}" assignment')
+    logger.info('Getting "{}" assignment', assignment_name)
     assignment = get_assignment(course, assignment_name)
 
-    logger.info('Searching for submissions that failed at least one test')
+    if cutoff is None:
+        logger.info('Searching for submissions that failed any tests')
+    else:
+        logger.info('Searching for submissions that passed less than {} tests', cutoff)
 
-    failed_submissions = list()
-
-    submissions = assignment.list_submissions(grader=None)
-    for submission in submissions:
-        if submission.isFinalized: continue
-        for t in submission.tests:
-            if not t.passed:
-                failed_submissions.append(submission.id)
-                break
-
-    num_failed = len(failed_submissions)
-    logger.debug(f'Found {num_failed} submissions')
+    failed_submissions, num_failed = get_failed_submissions(assignment, cutoff, search_all)
 
     if num_failed > 0:
-        logger.info('Assigning submissions to grader')
-        for s_id in failed_submissions:
-            codepost.submission.update(s_id, grader=grader)
+        assign_submissions(grader, failed_submissions)
 
     logger.info('Done')
 
