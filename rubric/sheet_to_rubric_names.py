@@ -47,7 +47,7 @@ SHEET_HEADERS = {
 
 TIER_FMT = '\\[T{tier}\\] {text}'
 
-TEMPLATE_YES = ('x', 'yes')
+TEMPLATE_YES = ('x', 'yes', 'y')
 
 
 # ===========================================================================
