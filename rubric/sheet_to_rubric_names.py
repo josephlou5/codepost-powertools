@@ -382,7 +382,10 @@ def create_all_rubrics(rubrics, override_rubric=False, delete_missing=False, wip
     logger.info('Creating all assignment rubrics')
 
     for a_id, rubric in rubrics.items():
-        create_assignment_rubric(a_id, rubric, override_rubric, delete_missing, wipe_existing)
+        if wipe_existing:
+            wipe_and_create_assignment_rubric(a_id, rubric, override_rubric)
+        else:
+            create_assignment_rubric(a_id, rubric, override_rubric, delete_missing)
 
     logger.info('Created all rubrics')
 
