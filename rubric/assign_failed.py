@@ -73,13 +73,11 @@ def get_failed_submissions(assignment, cutoff, search_all) -> (list, int):
         if not search_all and submission.grader is not None: continue
         if cutoff is None:
             # if fail one test, add
-            for t in submission.tests:
-                if not t.passed:
-                    failed_submissions.append(submission.id)
-                    break
+            if not next((t for t in submission.tests if not t.passed), True):
+                failed_submissions.append(submission.id)
         else:
             # if passed less than cutoff, add
-            if len(list(filter(lambda t: t.passed, submission.tests))) < cutoff:
+            if len([t for t in submission.tests if t.passed]) < cutoff:
                 failed_submissions.append(submission.id)
 
     num_failed = len(failed_submissions)
