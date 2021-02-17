@@ -148,7 +148,10 @@ def get_all_rubric_comments(course, sheet, start_sheet=1, end_sheet=None) -> dic
     # go through the sheet and find the assignments
     data = dict()
     for index in range(start_sheet, end_sheet + 1):
-        worksheet = Worksheet(sheet.get_worksheet(index))
+        w = sheet.get_worksheet(index)
+        if w is None: continue
+
+        worksheet = Worksheet(w)
 
         # check assignment id in A1
         try:
