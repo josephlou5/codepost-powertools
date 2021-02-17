@@ -149,7 +149,6 @@ def get_all_rubric_comments(course, sheet, start_sheet=0, end_sheet=None) -> dic
     data = dict()
     for index in range(start_sheet, end_sheet + 1):
         w = sheet.get_worksheet(index)
-        print(index, w)
         if w is None: continue
 
         worksheet = Worksheet(w)
