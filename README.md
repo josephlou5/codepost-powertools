@@ -22,34 +22,57 @@ The name of this file can be customized in `shared.py`.
 Whenever testing, the dummy course `Joseph's Course` is used instead of an actual codePost course.
 
 ### rubric_to_sheet.py
-Exports a codePost rubric to a Google Sheet. Takes in the following command-line arguments:
+Exports a codePost rubric to a Google Sheet. Replaces the entire sheet.
+
+Takes in the following command-line arguments:
 - `course_period`: The period of the COS126 course to export from.
 - `sheet_name`: The name of the sheet to import the rubrics to.
 - `num_assignments`: The number of assignments to get from the course. Default is ALL.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.   
-  - If running as a test and `num_assignments` is not given, `num_assignments` is set to 1.
+  - If running as a test and `num_assignments` is not given, `num_assignments` is set to `1`.
 - `-i`/`--instances`: Whether to count instances of rubric comments. Default is `False`.
 
 ### sheet_to_rubric.py
-Imports a codePost rubric from a Google Sheet. Takes in the following command-line arguments:
+Imports a codePost rubric from a Google Sheet. Replaces the entire rubric on codePost.
+
+Takes in the following command-line arguments:
 - `course_period`: The period of the COS126 course to import to.
 - `sheet_name`: The name of the sheet to pull the rubrics from.
 - `num_assignments`: The number of assignments to get from the sheet. Default is ALL.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
-  - If running as a test and `num_assignments` is not given, `num_assignments` is set to 1.
+  - If running as a test and `num_assignments` is not given, `num_assignments` is set to `1`.
 - `-o`/`--override`: Whether to override rubrics of assignments if submissions exist. Default is `False`.
 
+### sheet_to_rubric_names.py
+Imports a codePost rubric from a Google Sheet, using the `name` field of rubric comments to account for updates.
+
+Takes in the following command-line arguments:
+- `course_period`: The period of the COS126 course to import to.
+- `sheet_name`: The name of the sheet to pull the rubrics from.
+- `start_sheet`: The index of the first sheet to pull from (1-indexed). Default is `1`.
+- `end_sheet`: The index of the last sheet to pull from (1-indexed). Default is same as `start_sheet`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+  - If running as a test and `start_sheet` is not given, `start_sheet` is set to `1`.
+- `-o`/`--override`: Whether to override rubrics of assignments. Default is `False`.
+- `-d`/`--delete`: Whether to delete comments that are not in the sheet. Default is `False`.
+- `-w`/`--wipe`: Whether to completely wipe the existing rubric. Default is `False`.
+
 ### assign_failed.py
-Assign all submissions that fail tests to a grader. Takes in the following command-line arguments:
+Assign all submissions that fail tests to a grader.
+
+Takes in the following command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
 - `grader`: The grader to assign the submissions to.
 - `cutoff`: The number of tests that denote "passed".
-- `-sa`/`--search_all`: Whether to search all submissions, not just those with no grader. Default is `False`.
+- `-sa`/`--search-all`: Whether to search all submissions, not just those with no grader. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
 ### auto_comments.py
-Automatically add rubric comments to submissions. Takes in the following command-line arguments:
+Automatically add rubric comments to submissions.
+Skips finalized submissions and files with any comments.
+
+Takes in the following command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.

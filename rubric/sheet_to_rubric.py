@@ -210,7 +210,7 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False):
         category = codepost.rubric_category.create(
             name=c_name,
             assignment=a_id,
-            pointLimit=max_points
+            pointLimit=max_points,
         )
         c_id = category.id
 
