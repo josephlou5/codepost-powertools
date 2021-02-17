@@ -19,6 +19,8 @@ Create a [service account](https://gspread.readthedocs.io/en/latest/oauth2.html#
 and share your Google Sheet with it. Save the `service_account.json` file in the `rubric` directory.
 The name of this file can be customized in `shared.py`.
 
+Whenever testing, the dummy course `Joseph's Course` is used instead of an actual codePost course.
+
 ### rubric_to_sheet.py
 Exports a codePost rubric to a Google Sheet. Takes in the following command-line arguments:
 - `course_period`: The period of the COS126 course to export from.
@@ -38,8 +40,16 @@ Imports a codePost rubric from a Google Sheet. Takes in the following command-li
 - `-o`/`--override`: Whether to override rubrics of assignments if submissions exist. Default is `False`.
 
 ### assign_failed.py
-Assign all submissions that fail any tests to a grader. Takes in the following command-line arguments:
+Assign all submissions that fail tests to a grader. Takes in the following command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
 - `grader`: The grader to assign the submissions to.
+- `cutoff`: The number of tests that denote "passed".
+- `-sa`/`--search_all`: Whether to search all submissions, not just those with no grader. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+### auto_comments.py
+Automatically add rubric comments to submissions. Takes in the following command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
