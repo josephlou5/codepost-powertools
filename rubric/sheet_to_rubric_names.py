@@ -358,12 +358,15 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
         # logger.debug(f'Updated {name}')
 
     # create new comments
-    logger.debug('Creating new rubric comments')
-    for name in new_names:
-        c_id = categories[comment_categories[name]].id
-        comment_info = rubric_comments[name]
-        codepost.rubric_comment.create(category=c_id, **comment_info)
-        logger.debug(f'Created "{name}" in "{comment_categories[name]}"')
+    if len(new_names) == 0:
+        logger.debug('No new rubric comments to create')
+    else:
+        logger.debug('Creating new rubric comments')
+        for name in new_names:
+            c_id = categories[comment_categories[name]].id
+            comment_info = rubric_comments[name]
+            codepost.rubric_comment.create(category=c_id, **comment_info)
+            logger.debug(f'Created "{name}" in "{comment_categories[name]}"')
 
     logger.debug('Rubric creation for "{}" assignment successful', a_name)
 
