@@ -121,16 +121,16 @@ def get_assignment_rubric(worksheet) -> dict:
     return rubric
 
 
-def get_all_rubric_comments(course, sheet, start_sheet=1, end_sheet=None) -> dict:
+def get_all_rubric_comments(course, sheet, start_sheet=0, end_sheet=None) -> dict:
     """Gets the rubric comments for a course from a sheet.
 
     Args:
         course (codepost.models.courses.Courses): The course.
         sheet (gspread.models.Spreadsheet): The sheet.
-        start_sheet (int): The index of the first sheet to pull from (1-indexed).
-            Default is 1.
-        end_sheet (int): The index of the last sheet to pull from (1-indexed).
-            Default is the last one.
+        start_sheet (int): The index of the first sheet to pull from (0-indexed).
+            Default is 0.
+        end_sheet (int): The index of the last sheet to pull from (0-indexed).
+            Default is the same as start_sheet.
 
     Returns:
         dict: The rubric comments in the format:
@@ -149,6 +149,7 @@ def get_all_rubric_comments(course, sheet, start_sheet=1, end_sheet=None) -> dic
     data = dict()
     for index in range(start_sheet, end_sheet + 1):
         w = sheet.get_worksheet(index)
+        print(index, w)
         if w is None: continue
 
         worksheet = Worksheet(w)
@@ -416,9 +417,9 @@ def main(course_period, sheet_name, start_sheet, end_sheet, testing, override, d
     Args:
         course_period (str): The period of the COS126 course to import to.
         sheet_name (str): The name of the sheet to pull the rubrics from.
-        start_sheet (int): The index of the first sheet to pull from (1-indexed).
-            Default is 1.
-        end_sheet (int): The index of the last sheet to pull from (1-indexed).
+        start_sheet (int): The index of the first sheet to pull from (0-indexed).
+            Default is 0.
+        end_sheet (int): The index of the last sheet to pull from (0-indexed).
             Default is same as start_sheet. \f
         testing (bool): Whether to run as a test.
             Default is False.
@@ -460,7 +461,7 @@ def main(course_period, sheet_name, start_sheet, end_sheet, testing, override, d
         return
 
     if testing and start_sheet is None and end_sheet is None:
-        start_sheet = 1
+        start_sheet = 0
     rubrics = get_all_rubric_comments(course, sheet, start_sheet, end_sheet)
 
     create_all_rubrics(rubrics, override, delete, wipe)

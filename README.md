@@ -49,8 +49,8 @@ Imports a codePost rubric from a Google Sheet, using the `name` field of rubric 
 Takes in the following command-line arguments:
 - `course_period`: The period of the COS126 course to import to.
 - `sheet_name`: The name of the sheet to pull the rubrics from.
-- `start_sheet`: The index of the first sheet to pull from (1-indexed). Default is `1`.
-- `end_sheet`: The index of the last sheet to pull from (1-indexed). Default is same as `start_sheet`.
+- `start_sheet`: The index of the first sheet to pull from (0-indexed). Default is `0`.
+- `end_sheet`: The index of the last sheet to pull from (0-indexed). Default is same as `start_sheet`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
   - If running as a test and `start_sheet` is not given, `start_sheet` is set to `1`.
 - `-o`/`--override`: Whether to override rubrics of assignments. Default is `False`.
