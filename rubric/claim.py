@@ -154,7 +154,7 @@ def main(course_period, assignment_name, claiming, testing):
     if claiming:
         old_graders = claim_all_unclaimed(assignment)
         logger.info('Dumping old graders in "{}"', DUMP_FILE)
-        with open(DUMP_FILE,'w') as f:
+        with open(DUMP_FILE, 'w') as f:
             json.dump(old_graders, f)
     else:
         unclaim_all_claimed(assignment)
