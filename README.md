@@ -24,7 +24,7 @@ Whenever testing, the dummy course `Joseph's Course` is used instead of an actua
 ### rubric_to_sheet.py
 Exports a codePost rubric to a Google Sheet. Replaces the entire sheet.
 
-Takes in the following command-line arguments:
+Command-line arguments:
 - `course_period`: The period of the COS126 course to export from.
 - `sheet_name`: The name of the sheet to import the rubrics to.
 - `num_assignments`: The number of assignments to get from the course. Default is ALL.
@@ -35,7 +35,7 @@ Takes in the following command-line arguments:
 ### sheet_to_rubric.py
 Imports a codePost rubric from a Google Sheet. Replaces the entire rubric on codePost.
 
-Takes in the following command-line arguments:
+Command-line arguments:
 - `course_period`: The period of the COS126 course to import to.
 - `sheet_name`: The name of the sheet to pull the rubrics from.
 - `num_assignments`: The number of assignments to get from the sheet. Default is ALL.
@@ -46,7 +46,7 @@ Takes in the following command-line arguments:
 ### sheet_to_rubric_names.py
 Imports a codePost rubric from a Google Sheet, using the `name` field of rubric comments to account for updates.
 
-Takes in the following command-line arguments:
+Command-line arguments:
 - `course_period`: The period of the COS126 course to import to.
 - `sheet_name`: The name of the sheet to pull the rubrics from.
 - `start_sheet`: The index of the first sheet to pull from (0-indexed). Default is `0`.
@@ -60,7 +60,7 @@ Takes in the following command-line arguments:
 ### assign_failed.py
 Assign all submissions that fail tests to a grader.
 
-Takes in the following command-line arguments:
+Command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
 - `grader`: The grader to assign the submissions to.
@@ -72,7 +72,18 @@ Takes in the following command-line arguments:
 Automatically add rubric comments to submissions.
 Skips finalized submissions and files with any comments.
 
-Takes in the following command-line arguments:
+Command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+### claim.py
+Claims all remaining submissions to a dummy grader account,
+or unclaims all submissions assigned to the dummy grader account.
+If claiming, dumps all the graders for the submissions into a `.json` file.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
+- `claiming`: Whether to claim or unclaim submissions.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
