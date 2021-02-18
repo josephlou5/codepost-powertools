@@ -53,7 +53,7 @@ Command-line arguments:
 - `start_sheet`: The index of the first sheet to pull from (0-indexed). Default is `0`.
 - `end_sheet`: The index of the last sheet to pull from (0-indexed). Default is same as `start_sheet`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
-  - If running as a test and `start_sheet` is not given, `start_sheet` is set to `1`.
+  - If running as a test and `start_sheet` is not given, `start_sheet` is set to `0`.
 - `-o`/`--override`: Whether to override rubrics of assignments. Default is `False`.
 - `-d`/`--delete`: Whether to delete comments that are not in the sheet. Default is `False`.
 - `-w`/`--wipe`: Whether to completely wipe the existing rubric. Default is `False`.
