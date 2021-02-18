@@ -29,6 +29,8 @@ import time
 from shared import *
 from myworksheet import Worksheet
 
+# TODO (possibly): order categories programmatically; don't depend on sheet order
+
 # ===========================================================================
 
 SHEET_HEADERS = {
