@@ -88,3 +88,17 @@ Command-line arguments:
 - `assignment_name`: The name of the assignment.
 - `claiming`: Whether to claim or unclaim submissions.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+### graded_no_comments.py
+Find all submissions that have no comments.
+To "open" a submission means to remove its grader and mark it as unfinalized,
+so that another grader can claim it from the queue.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
+- `-lf`/`--list-finalized`: Whether to list finalized submissions that have no comments. Default is `False`.
+- `-la`/`--list-all`: Whether to list all submissions that have no comments. Default is `False`.
+- `-of`/`--open-finalized`: Whether to open finalized submissions that have no comments. Default is `False`.
+- `-oa`/`--open-all`: Whether to open all submissions that have no comments. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
