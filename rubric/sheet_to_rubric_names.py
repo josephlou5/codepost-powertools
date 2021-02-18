@@ -350,8 +350,7 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
         # if anything isn't the same, update the comment
         if old_comment != comment_info:
             codepost.rubric_comment.update(comment.id, **comment_info)
-            logger.debug(f'Updated {name}')
-            break
+            logger.debug(f'Updated "{name}"')
 
     # create new comments
     if len(new_names) == 0:
