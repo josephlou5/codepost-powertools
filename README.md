@@ -9,6 +9,7 @@ and the [`gspread` package](https://gspread.readthedocs.io/en/latest/).
 - `click`: For command line interface
 - `loguru`: For logging status messages
 - `time`: For timing
+- `json`: For file dump in `claim.py`
 
 ## Usage
 
