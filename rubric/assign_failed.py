@@ -1,6 +1,7 @@
 """
 assign_failed.py
 Assign all submissions that fail tests to a grader.
+Cannot detect cases of all tests not running (0 total tests).
 
 GitHub repo:
 https://github.com/josephlou5/codepost-rubric-import-export
@@ -116,6 +117,7 @@ def assign_submissions(grader, submissions):
               help='Whether to run as a test. Default is False.')
 def main(course_period, assignment_name, grader, cutoff, search_all, testing):
     """Assign all submissions that fail tests to a grader.
+    Cannot detect cases of all tests not running (0 total tests).
 
     \b
     Args:

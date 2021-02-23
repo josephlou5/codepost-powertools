@@ -49,6 +49,7 @@ Command-line arguments:
 
 ### assign_failed.py
 Assign all submissions that fail tests to a grader.
+Cannot detect cases of all tests not running (0 total tests).
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
