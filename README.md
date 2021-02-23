@@ -34,17 +34,6 @@ Command-line arguments:
 - `-i`/`--instances`: Whether to count instances of rubric comments. Default is `False`.
 
 ### sheet_to_rubric.py
-Imports a codePost rubric from a Google Sheet. Replaces the entire rubric on codePost.
-
-Command-line arguments:
-- `course_period`: The period of the COS126 course to import to.
-- `sheet_name`: The name of the sheet to pull the rubrics from.
-- `num_assignments`: The number of assignments to get from the sheet. Default is ALL.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
-  - If running as a test and `num_assignments` is not given, `num_assignments` is set to `1`.
-- `-o`/`--override`: Whether to override rubrics of assignments if submissions exist. Default is `False`.
-
-### sheet_to_rubric_names.py
 Imports a codePost rubric from a Google Sheet, using the `name` field of rubric comments to account for updates.
 
 Command-line arguments:
@@ -89,7 +78,7 @@ Command-line arguments:
 - `claiming`: Whether to claim or unclaim submissions.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
-### graded_no_comments.py
+### find_no_comments.py
 Find all submissions that have no comments.
 To "open" a submission means to remove its grader and mark it as unfinalized,
 so that another grader can claim it from the queue.
