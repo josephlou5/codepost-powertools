@@ -38,6 +38,8 @@ def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
         if a.name == a_name:
             assignment = a
             break
+    if assignment is None:
+        logger.critical('Assignment "{}" not found', a_name)
     return assignment
 
 
@@ -180,6 +182,8 @@ def main(course_period, assignment_name, list_finalized, list_all, open_finalize
 
     logger.info(f'Getting "{assignment_name}" assignment')
     assignment = get_assignment(course, assignment_name)
+    if assignment is None:
+        return
 
     finalized, submissions = get_no_comment_submissions(assignment)
 
