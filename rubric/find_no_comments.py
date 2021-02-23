@@ -1,5 +1,5 @@
 """
-graded_no_comments.py
+find_no_comments.py
 Find all submissions that have no comments.
 
 GitHub repo:
