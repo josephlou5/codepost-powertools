@@ -115,7 +115,9 @@ def get_all_rubric_comments(course, num_assignments=None) -> dict:
 
     data = dict()
 
-    for i, assignment in enumerate(course.assignments):
+    assignments = sorted(course.assignments, key=lambda a: a.sortKey)
+
+    for i, assignment in enumerate(assignments):
 
         if i == num_assignments:
             break
