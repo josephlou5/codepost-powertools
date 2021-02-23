@@ -73,7 +73,7 @@ def get_failed_submissions(assignment, cutoff, search_all) -> (list, int):
         if not search_all and submission.grader is not None: continue
         if cutoff is None:
             # if fail one test, add
-            if not next((t for t in submission.tests if not t.passed), True):
+            if not next((t.passed for t in submission.tests if not t.passed), True):
                 failed_submissions.append(submission.id)
         else:
             # if passed less than cutoff, add
@@ -120,7 +120,8 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
         course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment.
         grader (str): The grader to assign the submissions to.
-        cutoff (int): The number of tests that denote "passed". \f
+        cutoff (int): The number of tests that denote "passed".
+            Default is all passed. \f
         search_all (bool): Whether to search all submissions, not just those with no grader.
             Default is False.
         testing (bool): Whether to run as a test.

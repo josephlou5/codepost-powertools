@@ -54,7 +54,7 @@ Command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
 - `grader`: The grader to assign the submissions to.
-- `cutoff`: The number of tests that denote "passed".
+- `cutoff`: The number of tests that denote "passed". Default is all passed.
 - `-sa`/`--search-all`: Whether to search all submissions, not just those with no grader. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
