@@ -14,7 +14,8 @@ __all__ = [
 import os
 from loguru import logger
 import codepost
-import codepost.models.courses  # to get rid of an error message
+# to get rid of error messages
+from codepost.models import (courses, assignments)
 import gspread
 
 # ===========================================================================
@@ -30,6 +31,7 @@ def log_in_codepost() -> bool:
     Returns:
         bool: Whether the login was successful.
     """
+
     config = codepost.read_config_file()
     if config is None:
         logger.critical('codePost config file not found in directory')
@@ -48,6 +50,7 @@ def set_up_service_account() -> gspread.Client:
         gspread.Client: The client.
             Returns None if unsuccessful.
     """
+
     g_client = None
     if os.path.exists(SERVICE_ACCOUNT_FILE):
         g_client = gspread.service_account(SERVICE_ACCOUNT_FILE)
@@ -91,7 +94,32 @@ def get_126_course(period) -> codepost.models.courses.Courses:
         codepost.models.courses.Courses: The course.
             Returns None if unsuccessful.
     """
+
     return get_course('COS126', period)
+
+
+# ===========================================================================
+
+def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
+    """Get an assignment from a course.
+
+    Args:
+         course (codepost.models.courses.Courses): The course.
+         a_name (str): The name of the assignment.
+
+    Returns:
+        codepost.models.assignments.Assignments: The assignment.
+            Returns None if no assignment exists with that name.
+    """
+
+    assignment = None
+    for a in course.assignments:
+        if a.name == a_name:
+            assignment = a
+            break
+    if assignment is None:
+        logger.critical('Assignment "{}" not found', a_name)
+    return assignment
 
 
 # ===========================================================================
@@ -134,6 +162,7 @@ def add_temp_worksheet(sheet, title='temp', rows=1, cols=1, index=None) -> gspre
     Returns:
         gspread.models.Worksheet: The temp worksheet.
     """
+
     try:
         return sheet.add_worksheet(title, rows, cols, index)
     except gspread.exceptions.APIError:

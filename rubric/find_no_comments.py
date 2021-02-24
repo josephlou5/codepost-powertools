@@ -15,32 +15,8 @@ https://docs.codepost.io/docs
 import click
 from loguru import logger
 import codepost
-import codepost.models.assignments
 
 from shared import *
-
-
-# ===========================================================================
-
-def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
-    """Get an assignment from a course.
-
-    Args:
-         course (codepost.models.courses.Courses): The course.
-         a_name (str): The name of the assignment.
-
-    Returns:
-        codepost.models.assignments.Assignments: The assignment.
-            Returns None if no assignment exists with that name.
-    """
-    assignment = None
-    for a in course.assignments:
-        if a.name == a_name:
-            assignment = a
-            break
-    if assignment is None:
-        logger.critical('Assignment "{}" not found', a_name)
-    return assignment
 
 
 # ===========================================================================
@@ -104,12 +80,13 @@ def list_submissions(finalized, submissions=None):
             Default is None.
     """
 
-    logger.info('  '.join(('ID'.ljust(6),'Final?','Grader')))
+    logger.info('  '.join(('ID'.ljust(6), 'Final?', 'Grader')))
     for s_id, grader in finalized.items():
         logger.info('  '.join((f'{s_id:6}', 'Yes'.ljust(6), grader)))
     if submissions is not None:
         for s_id, grader in submissions.items():
             logger.info('  '.join((f'{s_id:6}', 'No'.ljust(6), grader)))
+
 
 # ===========================================================================
 

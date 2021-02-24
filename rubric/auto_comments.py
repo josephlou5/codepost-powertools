@@ -20,7 +20,6 @@ https://docs.codepost.io/docs
 import click
 from loguru import logger
 import codepost
-import codepost.models.assignments
 
 from shared import *
 

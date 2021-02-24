@@ -16,7 +16,6 @@ https://docs.codepost.io/docs
 import click
 from loguru import logger
 import codepost
-import codepost.models.assignments
 import json
 
 from shared import *
@@ -26,27 +25,6 @@ from shared import *
 DUMMY_GRADER = 'jdlou+dummygrader@princeton.edu'
 
 DUMP_FILE = 'old_submission_graders.json'
-
-
-# ===========================================================================
-
-def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
-    """Get an assignment from a course.
-
-    Args:
-         course (codepost.models.courses.Courses): The course.
-         a_name (str): The name of the assignment.
-
-    Returns:
-        codepost.models.assignments.Assignments: The assignment.
-            Returns None if no assignment exists with that name.
-    """
-    assignment = None
-    for a in course.assignments:
-        if a.name == a_name:
-            assignment = a
-            break
-    return assignment
 
 
 # ===========================================================================
