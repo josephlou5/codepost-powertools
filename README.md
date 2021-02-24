@@ -66,6 +66,7 @@ Skips finalized submissions and files with any comments.
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
+- `-s`/`--save`: save (bool): Whether to save a file with all the created comments. Default is `True`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
 ### claim.py
