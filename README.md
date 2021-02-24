@@ -50,11 +50,12 @@ Command-line arguments:
 ### auto_commenter.py
 Automatically add rubric comments to submissions.
 Skips finalized submissions and files with any comments.
+Has the option of saving all the created comments to a `.txt` file.
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
-- `-s`/`--save`: save (bool): Whether to save a file with all the created comments. Default is `True`.
+- `-s`/`--save`: Whether to save a file with all the created comments. Default is `True`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
 ### assign_failed.py
