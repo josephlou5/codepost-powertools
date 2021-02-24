@@ -19,6 +19,10 @@ import codepost
 
 from shared import *
 
+# ===========================================================================
+
+FAILED_FILE = 'failed_tests_submissions.txt'
+
 
 # ===========================================================================
 
@@ -31,7 +35,7 @@ def validate_grader(course, grader) -> bool:
 
 # ===========================================================================
 
-def get_failed_submissions(assignment, cutoff, search_all) -> (list, int):
+def get_failed_submissions(assignment, cutoff, search_all) -> (list, list, int):
     """Gets all the failed submissions from an assignment.
 
     Args:
@@ -40,29 +44,37 @@ def get_failed_submissions(assignment, cutoff, search_all) -> (list, int):
         search_all (bool): Whether to search all submissions, not just those with no grader.
 
     Returns:
-        (list, int): The failed submission ids and the number of failed submissions.
+        (list, list, int): The failed submission ids, the name of the students,
+            and the number of failed submissions.
     """
 
     failed_submissions = list()
+    student_names = list()
 
     submissions = assignment.list_submissions()
     for submission in submissions:
         if submission.isFinalized: continue
         # only submissions that have no grader
         if not search_all and submission.grader is not None: continue
-        if cutoff is None:
+        if len(submission.tests) == 0:
+            # no tests, add
+            failed_submissions.append(submission.id)
+            student_names += submission.students
+        elif cutoff is None:
             # if fail one test, add
             if not next((t.passed for t in submission.tests if not t.passed), True):
                 failed_submissions.append(submission.id)
+                student_names += submission.students
         else:
             # if passed less than cutoff, add
             if len([t for t in submission.tests if t.passed]) < cutoff:
                 failed_submissions.append(submission.id)
+                student_names += submission.students
 
     num_failed = len(failed_submissions)
     logger.debug('Found {} failed submissions', num_failed)
 
-    return failed_submissions, num_failed
+    return failed_submissions, student_names, num_failed
 
 
 # ===========================================================================
@@ -141,9 +153,13 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
     else:
         logger.info('Searching for submissions that passed less than {} tests', cutoff)
 
-    failed_submissions, num_failed = get_failed_submissions(assignment, cutoff, search_all)
+    failed_submissions, student_names, num_failed = get_failed_submissions(assignment, cutoff, search_all)
 
     if num_failed > 0:
+        # save in file
+        with open(FAILED_FILE, 'w') as f:
+            f.write('\n'.join(student_names) + '\n')
+        # assign submissions
         assign_submissions(grader, failed_submissions)
 
     logger.info('Done')
