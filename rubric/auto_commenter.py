@@ -27,6 +27,8 @@ from shared import *
 
 COMMENT_AUTHOR = 'jdlou+autocommenter@princeton.edu'
 
+COMMENTS_FILE = 'autocomments.txt'
+
 # ===========================================================================
 
 RUBRIC_COMMENTS = [
@@ -98,10 +100,11 @@ def get_missing_comment_ids(assignment):
 
 # ===========================================================================
 
-def parse_file(file) -> (list, int):
+def parse_file(s_id, file) -> (list, int):
     """Parses a file for instances of rubric comments.
 
     Args:
+        s_id (int): The submission id.
         file (codepost.models.files.Files): The file.
 
     Returns:
@@ -110,7 +113,10 @@ def parse_file(file) -> (list, int):
             and the number of comments in the file.
     """
 
+    # TODO: no-space-after-slash only once per submission
+
     f_id = file.id
+    f_name = file.name
 
     comments = list()
 
@@ -163,6 +169,9 @@ def parse_file(file) -> (list, int):
                         'endLine': line_num,
                         'file': f_id,
                         'rubricComment': COMMENTS['no-space-after-slash'],
+                        'submission': s_id,
+                        'file_name': f_name,
+                        'comment_name': 'no-space-after-slash',
                     })
                 # rest of the line is part of the comment
                 state = 'normal'
@@ -185,6 +194,9 @@ def parse_file(file) -> (list, int):
                         'endLine': line_num,
                         'file': f_id,
                         'rubricComment': COMMENTS['no-space-after-slash'],
+                        'submission': s_id,
+                        'file_name': f_name,
+                        'comment_name': 'no-space-after-slash',
                     })
 
                 state = 'in multi comment'
@@ -211,7 +223,8 @@ def create_comments(assignment) -> list:
 
     Returns:
         list: The comments, in a dict format with the keys:
-            (text, startChar, endChar, startLine, endLine, file, rubricComment)
+            (text, startChar, endChar, startLine, endLine, file, rubricComment,
+             submission, file_name, comment_name)
     """
 
     logger.info('Creating automatic rubric comments')
@@ -223,6 +236,8 @@ def create_comments(assignment) -> list:
     for i, submission in enumerate(submissions):
 
         if submission.isFinalized: continue
+
+        s_id = submission.id
 
         all_files = submission.files
 
@@ -257,6 +272,9 @@ def create_comments(assignment) -> list:
                     'endLine': 0,
                     'file': first_file.id,
                     'rubricComment': MISSING[filename],
+                    'submission': s_id,
+                    'file_name': first_file.name,
+                    'comment_name': 'missing-' + filename.split('.')[0].lower(),
                 })
         del missing_files
 
@@ -266,7 +284,7 @@ def create_comments(assignment) -> list:
             # extension could be java or .java; not reliable enough to use
             if not file.name.endswith('java'): continue
 
-            comments, num_comments = parse_file(file)
+            comments, num_comments = parse_file(s_id, file)
 
             # only update all_comments with comments that haven't occurred yet
             all_comments += [c for c in comments if c['rubricComment'] not in existing_comments]
@@ -283,6 +301,9 @@ def create_comments(assignment) -> list:
                     'endLine': 0,
                     'file': first_file.id,
                     'rubricComment': COMMENTS['no-comments'],
+                    'submission': s_id,
+                    'file_name': first_file.name,
+                    'comment_name': 'no-comments',
                 })
 
         if i % 100 == 99:
@@ -298,15 +319,19 @@ def create_comments(assignment) -> list:
 @click.command()
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
+@click.option('-s', '--save', is_flag=True, default=True, flag_value=False,
+              help='Whether to save a file with all the created comments. Default is True.')
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
-def main(course_period, assignment_name, testing):
+def main(course_period, assignment_name, save, testing):
     """Automatically add rubric comments to submissions.
 
     \b
     Args:
         course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment. \f
+        save (bool): Whether to save a file with all the created comments.
+            Default is True.
         testing (bool): Whether to run as a test.
             Default is False.
     """
@@ -339,11 +364,15 @@ def main(course_period, assignment_name, testing):
 
     apply_comments = create_comments(assignment)
 
+    if save:
+        logger.info('Saving rubric comments to "{}" file', COMMENTS_FILE)
+        with open(COMMENTS_FILE, 'w') as f:
+            for comment in apply_comments:
+                f.write(','.join((str(comment['submission']), comment['file_name'], comment['comment_name'])) + '\n')
+
     logger.info('Applying {} rubric comments', len(apply_comments))
     for comment in apply_comments:
         codepost.comment.create(**comment, author=COMMENT_AUTHOR)
-
-    # TODO create file listing all comments added
 
     logger.info('Done')
 
