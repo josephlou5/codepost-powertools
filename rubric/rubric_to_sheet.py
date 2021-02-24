@@ -333,11 +333,11 @@ def display_assignment_instances(worksheet, values):
     """
 
     # add values
-    worksheet.set_values('I3', values)
+    worksheet.set_values('J3', values)
 
     # format feedback columns
-    worksheet.format_number_cell('K', 'PERCENT', '0.0%')
-    worksheet.format_number_cell('M', 'PERCENT', '0.0%')
+    worksheet.format_number_cell('L', 'PERCENT', '0.0%')
+    worksheet.format_number_cell('N', 'PERCENT', '0.0%')
 
     # update worksheet
     worksheet.update()
