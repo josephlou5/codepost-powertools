@@ -62,13 +62,31 @@ def summary(assignment_name, submitted=False, graded=False, viewed=False) -> str
         str: The summary string.
     """
 
+    # return (assignment_name + ': '
+    #         + ('submitted' if submitted else 'not submitted') + ', '
+    #         + ('graded' if graded else 'not graded') + ', '
+    #         + ('viewed' if viewed else 'not viewed'))
+
     return (assignment_name + ': '
             + ('submitted' if submitted else 'not submitted') + ', '
-            + ('graded' if graded else 'not graded') + ', '
-            + ('viewed' if viewed else 'not viewed'))
+            + ('graded' if graded else 'not graded'))
+
+
+def remove_duplicates(lst) -> list:
+    """Remove duplicates from a list of strings while preserving order.
+
+    Args:
+        lst (list): The list with possible duplicates.
+
+    Returns:
+        list: The elements in the same order with duplicates removed.
+    """
+
+    return list(dict.fromkeys(lst).keys())
 
 
 # ===========================================================================
+
 
 def get_rubric_comments(assignment) -> dict:
     """Gets all the rubric comments for an assignment.
@@ -255,7 +273,7 @@ def create_reports(data, by='assignment') -> dict:
     reports = dict()
 
     for student, (summaries, info) in data.items():
-        report_str = f'{REPORT_FILENAME}\nLast updated {TODAY}\n\n'
+        report_str = ''
 
         # summary
         report_str += 'SUMMARY\n' + '\n'.join(summaries) + '\n\n'
@@ -269,7 +287,9 @@ def create_reports(data, by='assignment') -> dict:
                     report_str += (' ' * 4) + comment + '\n'
         elif by == 'comment':
             for comment, assignments in info.items():
-                report_str += comment + ': ' + (', '.join(set(assignments)))
+                report_str += comment + '\n'
+                for assignment in remove_duplicates(assignments):
+                    report_str += (' ' * 4) + assignment + '\n'
 
         reports[student] = report_str + '\n'
 
@@ -293,22 +313,30 @@ def apply_reports(assignment, reports):
 
         if submission.isFinalized: continue
 
-        # TODO: replace file instead of skipping submission?
-        if REPORT_FILENAME in (f.name for f in submission.files): continue
-
-        report_code = '\n'.join(reports[student] for student in submission.students if student in reports)
+        report_code = (REPORT_FILENAME + '\nLast updated: ' + str(TODAY) + '\n\n' +
+                       '\n'.join(reports[student] for student in submission.students if student in reports))
 
         # no reports exist for the students
         if report_code == '':
             logger.debug('Submission {}: Students had no reports', submission.id)
             continue
 
-        codepost.file.create(
-            name=REPORT_FILENAME,
-            code=report_code,
-            extension=REPORT_EXT,
-            submission=submission.id,
-        )
+        # replace file if exists
+        for file in submission.files:
+            if file.name == REPORT_FILENAME:
+                codepost.file.update(
+                    id=file.id,
+                    code=report_code,
+                )
+                break
+        else:
+            # create new file
+            codepost.file.create(
+                name=REPORT_FILENAME,
+                code=report_code,
+                extension=REPORT_EXT,
+                submission=submission.id,
+            )
 
         # DEBUG
         # logger.debug('Submission {}: Created "{}"', submission.id, REPORT_FILENAME)
