@@ -16,6 +16,7 @@ import datetime
 import click
 from loguru import logger
 import codepost
+import time
 
 from shared import *
 
@@ -340,6 +341,8 @@ def main(course_period, assignment_name, by, testing):
             Default is False.
     """
 
+    start = time.time()
+
     logger.info('Start')
 
     logger.info('Logging into codePost')
@@ -375,6 +378,10 @@ def main(course_period, assignment_name, by, testing):
     apply_reports(assignment, reports)
 
     logger.info('Done')
+
+    end = time.time()
+
+    logger.info('Total time: {:.2f} sec', end - start)
 
 
 # ===========================================================================

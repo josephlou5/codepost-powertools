@@ -16,6 +16,7 @@ https://docs.codepost.io/docs
 import click
 from loguru import logger
 import codepost
+import time
 
 from shared import *
 
@@ -120,6 +121,8 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
             Default is False.
     """
 
+    start = time.time()
+
     logger.info('Start')
 
     logger.info('Logging into codePost')
@@ -163,6 +166,10 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
         assign_submissions(grader, failed_submissions)
 
     logger.info('Done')
+
+    end = time.time()
+
+    logger.info('Total time: {:.2f} sec', end - start)
 
 
 # ===========================================================================
