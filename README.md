@@ -10,6 +10,7 @@ and the [`gspread` package](https://gspread.readthedocs.io/en/latest/).
 - `loguru`: For logging status messages
 - `time`: For timing
 - `json`: For file dump in `claim.py`
+- `datetime`: For the current date in the report file in `track_comments.py`
 
 ## Usage
 
