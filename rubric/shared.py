@@ -5,7 +5,7 @@ Shared methods.
 
 __all__ = [
     'log_in_codepost', 'set_up_service_account',
-    'get_course', 'get_126_course',
+    'get_course', 'get_126_course', 'get_assignment',
     'open_sheet', 'add_temp_worksheet',
 ]
 
