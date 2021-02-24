@@ -47,6 +47,16 @@ Command-line arguments:
 - `-d`/`--delete`: Whether to delete comments that are not in the sheet. Default is `False`.
 - `-w`/`--wipe`: Whether to completely wipe the existing rubric. Default is `False`.
 
+### auto_commenter.py
+Automatically add rubric comments to submissions.
+Skips finalized submissions and files with any comments.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
+- `-s`/`--save`: save (bool): Whether to save a file with all the created comments. Default is `True`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
 ### assign_failed.py
 Assign all submissions that fail tests to a grader.
 Cannot detect cases of all tests not running (0 total tests).
@@ -57,16 +67,6 @@ Command-line arguments:
 - `grader`: The grader to assign the submissions to.
 - `cutoff`: The number of tests that denote "passed". Default is all passed.
 - `-sa`/`--search-all`: Whether to search all submissions, not just those with no grader. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
-
-### auto_commenter.py
-Automatically add rubric comments to submissions.
-Skips finalized submissions and files with any comments.
-
-Command-line arguments:
-- `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
-- `-s`/`--save`: save (bool): Whether to save a file with all the created comments. Default is `True`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
 ### claim.py
@@ -92,4 +92,15 @@ Command-line arguments:
 - `-la`/`--list-all`: Whether to list all submissions that have no comments. Default is `False`.
 - `-of`/`--open-finalized`: Whether to open finalized submissions that have no comments. Default is `False`.
 - `-oa`/`--open-all`: Whether to open all submissions that have no comments. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+### track_comments.py
+Track rubric comment usage for students and graders.
+Creates report files and attaches them to respective submissions.
+
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment to apply the reports to.
+- `by`: The format to return the data. Default is `"assignment"`. Invalid values will be set to default.
+  - `"assignment"`: assignment name: list of comments
+  - `"comment"`: comment name: list of assignments
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
