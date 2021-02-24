@@ -1,5 +1,5 @@
 """
-auto_comments.py
+auto_commenter.py
 Automatically add rubric comments to submissions.
 
 Rubric comments:

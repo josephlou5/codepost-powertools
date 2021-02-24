@@ -59,7 +59,7 @@ Command-line arguments:
 - `-sa`/`--search-all`: Whether to search all submissions, not just those with no grader. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
-### auto_comments.py
+### auto_commenter.py
 Automatically add rubric comments to submissions.
 Skips finalized submissions and files with any comments.
 
