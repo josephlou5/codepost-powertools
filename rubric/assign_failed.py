@@ -57,20 +57,31 @@ def get_failed_submissions(assignment, cutoff, search_all) -> (list, list, int):
         if submission.isFinalized: continue
         # only submissions that have no grader
         if not search_all and submission.grader is not None: continue
-        if len(submission.tests) == 0:
-            # no tests, add
-            failed_submissions.append(submission.id)
-            student_names += submission.students
-        elif cutoff is None:
-            # if fail one test, add
-            if not next((t.passed for t in submission.tests if not t.passed), True):
-                failed_submissions.append(submission.id)
-                student_names += submission.students
+
+        s_id = submission.id
+        students = ','.join(submission.students)
+
+        passed_count = 0
+        for test in submission.tests:
+            if test.passed:
+                passed_count += 1
+            elif cutoff is None:
+                # failed a test, add
+                failed_submissions.append(s_id)
+                student_names.append(students)
+                break
         else:
-            # if passed less than cutoff, add
-            if len([t for t in submission.tests if t.passed]) < cutoff:
-                failed_submissions.append(submission.id)
-                student_names += submission.students
+            if passed_count == 0:
+                # passed no tests or no tests at all, add
+                failed_submissions.append(s_id)
+                student_names.append(students)
+            elif cutoff is None:
+                # no cutoff and passed all tests
+                pass
+            elif passed_count < cutoff:
+                # passed less than cutoff, add
+                failed_submissions.append(s_id)
+                student_names.append(students)
 
     num_failed = len(failed_submissions)
     logger.debug('Found {} failed submissions', num_failed)
@@ -113,7 +124,7 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
         course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment.
         grader (str): The grader to assign the submissions to.
-        cutoff (int): The number of tests that denote "passed".
+        cutoff (int): The number of tests that denote "passed". Must be positive.
             Default is all passed. \f
         search_all (bool): Whether to search all submissions, not just those with no grader.
             Default is False.
@@ -121,11 +132,15 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
             Default is False.
     """
 
+    if cutoff <= 0:
+        logger.error('"cutoff" must be positive')
+        return
+
     start = time.time()
 
     logger.info('Start')
 
-    logger.info('Logging into codePost')
+    logger.info('Logging in to codePost')
     success = log_in_codepost()
     if not success:
         return
