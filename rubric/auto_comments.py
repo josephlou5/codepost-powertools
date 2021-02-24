@@ -25,6 +25,10 @@ from shared import *
 
 # ===========================================================================
 
+COMMENT_AUTHOR = 'jdlou+autocommenter@princeton.edu'
+
+# ===========================================================================
+
 RUBRIC_COMMENTS = [
     'no-comments',  # 71462
     'no-space-after-slash',  # 72151
@@ -37,29 +41,6 @@ ONLY_ONCE = [
 COMMENTS = dict()
 
 MISSING = dict()
-
-
-# ===========================================================================
-
-def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
-    """Get an assignment from a course.
-
-    Args:
-         course (codepost.models.courses.Courses): The course.
-         a_name (str): The name of the assignment.
-
-    Returns:
-        codepost.models.assignments.Assignments: The assignment.
-            Returns None if no assignment exists with that name.
-    """
-    assignment = None
-    for a in course.assignments:
-        if a.name == a_name:
-            assignment = a
-            break
-    if assignment is None:
-        logger.critical('Assignment "{}" not found', a_name)
-    return assignment
 
 
 # ===========================================================================
@@ -146,8 +127,12 @@ def parse_file(file) -> (list, int):
     num_comments = 0
 
     for line_num, line in enumerate(file.code.split('\n')):
-        if state != 'in multi comment':
+
+        if state in ('starting multi comment', 'in multi comment', 'first asterisk'):
+            state = 'in multi comment'
+        else:
             state = 'normal'
+
         for char_num, c in enumerate(line):
             if state == 'normal':
                 if c == '/':
@@ -184,8 +169,14 @@ def parse_file(file) -> (list, int):
                 break
             elif state == 'start multi comment':
                 num_comments += 1
+
+                if c == '*':
+                    state = 'first asterisk'
+                    continue
+
                 if 'no-space-after-slash' in COMMENTS and c != ' ':
                     # in a comment, but there's no space
+                    # /** passes, and doesn't check after that
                     comments.append({
                         'text': '',
                         'startChar': char_num - 2,
@@ -196,17 +187,15 @@ def parse_file(file) -> (list, int):
                         'rubricComment': COMMENTS['no-space-after-slash'],
                     })
 
-                if c == '*':
-                    state = 'first asterisk'
-                else:
-                    state = 'in multi comment'
+                state = 'in multi comment'
+
             elif state == 'in multi comment':
                 if c == '*':
                     state = 'first asterisk'
             elif state == 'first asterisk':
                 if c == '/':
                     state = 'normal'
-                else:
+                elif c != '*':
                     state = 'in multi comment'
 
     return comments, num_comments
@@ -245,10 +234,11 @@ def create_comments(assignment) -> list:
         for file in all_files:
             if len(file.comments) == 0:
                 files.append(file)
-            else:
-                for comment in file.comments:
-                    if comment.rubricComment in ids:
-                        existing_comments.add(comment.rubricComment)
+                continue
+
+            for comment in file.comments:
+                if comment.rubricComment in ids:
+                    existing_comments.add(comment.rubricComment)
         del ids
 
         if len(files) == 0: continue
@@ -273,7 +263,8 @@ def create_comments(assignment) -> list:
         # parsing files
         total_num_comments = 0
         for file in files:
-            if file.extension != 'java': continue
+            # extension could be java or .java; not reliable enough to use
+            if not file.name.endswith('java'): continue
 
             comments, num_comments = parse_file(file)
 
@@ -294,7 +285,7 @@ def create_comments(assignment) -> list:
                     'rubricComment': COMMENTS['no-comments'],
                 })
 
-        if i > 0 and i % 100 == 0:
+        if i % 100 == 99:
             logger.debug('Done with submission {}', i + 1)
 
     logger.info('Created automatic rubric comments')
@@ -350,7 +341,9 @@ def main(course_period, assignment_name, testing):
 
     logger.info('Applying {} rubric comments', len(apply_comments))
     for comment in apply_comments:
-        codepost.comment.create(**comment)
+        codepost.comment.create(**comment, author=COMMENT_AUTHOR)
+
+    # TODO create file listing all comments added
 
     logger.info('Done')
 
