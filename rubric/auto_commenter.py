@@ -27,7 +27,7 @@ from shared import *
 
 COMMENT_AUTHOR = 'jdlou+autocommenter@princeton.edu'
 
-COMMENTS_FILE = 'autocomments.txt'
+COMMENTS_FILE = 'added_auto_comments.txt'
 
 # ===========================================================================
 
