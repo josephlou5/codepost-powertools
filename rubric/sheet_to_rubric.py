@@ -331,7 +331,7 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
             logger.debug('Created "{}" rubric category', c_name)
 
     # sort categories
-    for sort_key, category in enumerate(new_categories):
+    for sort_key, category in enumerate(rubric.keys()):
         codepost.rubric_category.update(
             id=categories[category].id,
             sortKey=sort_key,
