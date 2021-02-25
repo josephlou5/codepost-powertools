@@ -320,8 +320,6 @@ def create_comments(assignment) -> list:
 @click.command()
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
-@click.option('-s', '--save', is_flag=True, default=True, flag_value=False,
-              help='Whether to save a file with all the created comments. Default is True.')
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
 def main(course_period, assignment_name, save, testing):
@@ -331,8 +329,6 @@ def main(course_period, assignment_name, save, testing):
     Args:
         course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment. \f
-        save (bool): Whether to save a file with all the created comments.
-            Default is True.
         testing (bool): Whether to run as a test.
             Default is False.
     """
@@ -367,11 +363,10 @@ def main(course_period, assignment_name, save, testing):
 
     apply_comments = create_comments(assignment)
 
-    if save:
-        logger.info('Saving rubric comments to "{}" file', COMMENTS_FILE)
-        with open(COMMENTS_FILE, 'w') as f:
-            for comment in apply_comments:
-                f.write(','.join((str(comment['submission']), comment['file_name'], comment['comment_name'])) + '\n')
+    logger.info('Saving rubric comments to "{}" file', COMMENTS_FILE)
+    with open(COMMENTS_FILE, 'w') as f:
+        for comment in apply_comments:
+            f.write(','.join((str(comment['submission']), comment['file_name'], comment['comment_name'])) + '\n')
 
     logger.info('Applying {} rubric comments', len(apply_comments))
     for comment in apply_comments:
