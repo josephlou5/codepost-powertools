@@ -185,7 +185,7 @@ def parse_file(s_id, file) -> (list, int):
                     continue
 
                 if 'no-space-after-slash' in COMMENTS and c != ' ':
-                    # in a comment, but there's no space
+                    # in a multi line comment, but there's no space
                     # /** passes, and doesn't check after that
                     comments.append({
                         'text': '',
@@ -322,7 +322,7 @@ def create_comments(assignment) -> list:
 @click.argument('assignment_name', type=str, required=True)
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
-def main(course_period, assignment_name, save, testing):
+def main(course_period, assignment_name, testing):
     """Automatically add rubric comments to submissions.
 
     \b
