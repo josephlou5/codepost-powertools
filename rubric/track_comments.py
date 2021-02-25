@@ -62,14 +62,10 @@ def summary(assignment_name, submitted=False, graded=False, viewed=False) -> str
         str: The summary string.
     """
 
-    # return (assignment_name + ': '
-    #         + ('submitted' if submitted else 'not submitted') + ', '
-    #         + ('graded' if graded else 'not graded') + ', '
-    #         + ('viewed' if viewed else 'not viewed'))
-
     return (assignment_name + ': '
             + ('submitted' if submitted else 'not submitted') + ', '
-            + ('graded' if graded else 'not graded'))
+            + ('graded' if graded else 'not graded') + ', '
+            + ('viewed' if viewed else 'not viewed'))
 
 
 def remove_duplicates(lst) -> list:
@@ -133,7 +129,8 @@ def get_student_assignment_comments(assignment) -> dict:
 
         assignment_summary = summary(assignment.name,
                                      submitted=True,
-                                     graded=submission.isFinalized and assignment.isReleased)
+                                     graded=submission.isFinalized and assignment.isReleased,
+                                     viewed=submission.list_view_history()['hasViewed'])
 
         submission_comments = list()
         for f in submission.files:
@@ -313,11 +310,11 @@ def apply_reports(assignment, reports):
 
         if submission.isFinalized: continue
 
-        report_code = (REPORT_FILENAME + '\nLast updated: ' + str(TODAY) + '\n\n' +
-                       '\n'.join(reports[student] for student in submission.students if student in reports))
+        report_str = (REPORT_FILENAME + '\nLast updated: ' + str(TODAY) + '\n\n' +
+                      '\n'.join(reports[student] for student in submission.students if student in reports))
 
         # no reports exist for the students
-        if report_code == '':
+        if report_str == '':
             logger.debug('Submission {}: Students had no reports', submission.id)
             continue
 
@@ -326,14 +323,14 @@ def apply_reports(assignment, reports):
             if file.name == REPORT_FILENAME:
                 codepost.file.update(
                     id=file.id,
-                    code=report_code,
+                    code=report_str,
                 )
                 break
         else:
             # create new file
             codepost.file.create(
                 name=REPORT_FILENAME,
-                code=report_code,
+                code=report_str,
                 extension=REPORT_EXT,
                 submission=submission.id,
             )
@@ -398,7 +395,6 @@ def main(course_period, assignment_name, by, testing):
     if by not in ('assignment', 'comment'):
         by = 'assignment'
 
-    logger.info('Getting ')
     data = get_student_comments(course, assignment_name, by)
 
     reports = create_reports(data, by)
