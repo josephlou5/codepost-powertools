@@ -216,8 +216,94 @@ def parse_file(s_id, file) -> (list, int):
 
 # ===========================================================================
 
+def create_submission_comments(s_id, s_files) -> list:
+    """Creates automatically applied rubric comments for a submission.
+
+    Args:
+        s_id (int): The submission id.
+        s_files (list): All the files in this submission.
+
+    Returns:
+        list: The comments, in a dict format with the keys:
+            (text, startChar, endChar, startLine, endLine, file, rubricComment,
+             submission, file_name, comment_name)
+    """
+
+    all_comments = list()
+
+    # only look through files that don't have any comments
+    files = list()
+    # find existing comments
+    ids = set(MISSING.values()).union(COMMENTS[name] for name in ONLY_ONCE if name in COMMENTS)
+    existing_comments = set()
+    for file in s_files:
+        if len(file.comments) == 0:
+            files.append(file)
+            continue
+
+        for comment in file.comments:
+            if comment.rubricComment in ids:
+                existing_comments.add(comment.rubricComment)
+    del ids
+
+    if len(files) == 0:
+        return all_comments
+
+    first_file = min(files, key=lambda f: f.name)
+
+    # checking for missing files
+    missing_files = set(MISSING.keys()) - set(f.name for f in s_files)
+    for filename in missing_files:
+        if MISSING[filename] not in existing_comments:
+            all_comments.append({
+                'text': '',
+                'startChar': 0,
+                'endChar': 0,
+                'startLine': 0,
+                'endLine': 0,
+                'file': first_file.id,
+                'rubricComment': MISSING[filename],
+                'submission': s_id,
+                'file_name': first_file.name,
+                'comment_name': 'missing-' + filename.split('.')[0].lower(),
+            })
+    del missing_files
+
+    # parsing files
+    total_num_comments = 0
+    for file in files:
+        # extension could be java or .java; not reliable enough to use
+        if not file.name.endswith('java'): continue
+
+        comments, num_comments = parse_file(s_id, file)
+
+        # only update all_comments with comments that haven't occurred yet
+        all_comments += [c for c in comments if c['rubricComment'] not in existing_comments]
+        total_num_comments += num_comments
+
+    # no comments in any file
+    if total_num_comments == 0:
+        if COMMENTS['no-comments'] not in existing_comments:
+            all_comments.append({
+                'text': '',
+                'startChar': 0,
+                'endChar': 0,
+                'startLine': 0,
+                'endLine': 0,
+                'file': first_file.id,
+                'rubricComment': COMMENTS['no-comments'],
+                'submission': s_id,
+                'file_name': first_file.name,
+                'comment_name': 'no-comments',
+            })
+
+    return all_comments
+
+
+# ===========================================================================
+
 def create_comments(assignment) -> list:
-    """Create automatically applied rubric comments for an assignment.
+    """Creates automatically applied rubric comments for an assignment.
 
     Args:
         assignment (codepost.models.assignments.Assignments): The assignment.
@@ -239,73 +325,9 @@ def create_comments(assignment) -> list:
         if submission.isFinalized: continue
 
         s_id = submission.id
-
         all_files = submission.files
 
-        # only look through files that don't have any comments
-        files = list()
-        # find existing comments
-        ids = set(MISSING.values()).union(COMMENTS[name] for name in ONLY_ONCE if name in COMMENTS)
-        existing_comments = set()
-        for file in all_files:
-            if len(file.comments) == 0:
-                files.append(file)
-                continue
-
-            for comment in file.comments:
-                if comment.rubricComment in ids:
-                    existing_comments.add(comment.rubricComment)
-        del ids
-
-        if len(files) == 0: continue
-
-        first_file = min(files, key=lambda f: f.name)
-
-        # checking for missing files
-        missing_files = set(MISSING.keys()) - set(f.name for f in all_files)
-        for filename in missing_files:
-            if MISSING[filename] not in existing_comments:
-                all_comments.append({
-                    'text': '',
-                    'startChar': 0,
-                    'endChar': 0,
-                    'startLine': 0,
-                    'endLine': 0,
-                    'file': first_file.id,
-                    'rubricComment': MISSING[filename],
-                    'submission': s_id,
-                    'file_name': first_file.name,
-                    'comment_name': 'missing-' + filename.split('.')[0].lower(),
-                })
-        del missing_files
-
-        # parsing files
-        total_num_comments = 0
-        for file in files:
-            # extension could be java or .java; not reliable enough to use
-            if not file.name.endswith('java'): continue
-
-            comments, num_comments = parse_file(s_id, file)
-
-            # only update all_comments with comments that haven't occurred yet
-            all_comments += [c for c in comments if c['rubricComment'] not in existing_comments]
-            total_num_comments += num_comments
-
-        # no comments in any file
-        if total_num_comments == 0:
-            if COMMENTS['no-comments'] not in existing_comments:
-                all_comments.append({
-                    'text': '',
-                    'startChar': 0,
-                    'endChar': 0,
-                    'startLine': 0,
-                    'endLine': 0,
-                    'file': first_file.id,
-                    'rubricComment': COMMENTS['no-comments'],
-                    'submission': s_id,
-                    'file_name': first_file.name,
-                    'comment_name': 'no-comments',
-                })
+        all_comments.append(create_submission_comments(s_id, all_files))
 
         if i % 100 == 99:
             logger.debug('Done with submission {}', i + 1)
