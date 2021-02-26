@@ -585,7 +585,7 @@ def main(course_period, assignment_name, testing):
     with open(COMMENTS_FILE, 'w') as f:
         f.write('\n'.join(for_file) + '\n')
 
-    logger.info('Applying {} rubric comments', len(all_submission_comments))
+    logger.info('Applying {} rubric comments', len(applying))
     for comment in applying:
         codepost.comment.create(**comment)
 
