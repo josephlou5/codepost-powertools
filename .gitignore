@@ -7,6 +7,10 @@ service_account.json
 # test directory
 ignore/
 
+# output files
+*.txt
+*.json
+
 # PyCharm editor configuration
 .idea
 
