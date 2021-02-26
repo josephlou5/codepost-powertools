@@ -376,6 +376,8 @@ def display_all_instances(sheet, instances):
 
 # ===========================================================================
 
+# TODO update arguments
+
 @click.command()
 @click.argument('course_period', type=str, required=True)
 @click.argument('sheet_name', type=str, required=True)

@@ -24,6 +24,8 @@ import time
 
 from shared import *
 
+# TODO test functionality
+
 # ===========================================================================
 
 COMMENT_AUTHOR = 'jdlou+autocommenter@princeton.edu'
