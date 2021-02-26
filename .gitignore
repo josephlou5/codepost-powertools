@@ -4,6 +4,9 @@ codepost-config.yaml
 # google sheets service account configuration file
 service_account.json
 
+# test directory
+ignore/
+
 # PyCharm editor configuration
 .idea
 
