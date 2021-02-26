@@ -24,8 +24,6 @@ import time
 
 from shared import *
 
-# TODO test functionality
-
 # ===========================================================================
 
 COMMENT_AUTHOR = 'jdlou+autocommenter@princeton.edu'
@@ -58,7 +56,7 @@ class Comment:
     """Comment object: Represents a Comment.
 
     Constructors:
-        Comment(comment_id, file_id, file_name, text='',
+        Comment(s_id, comment_id, file_id, file_name, text='',
                 line=None, start_line=None, end_line=None,
                 start_char=None, end_char=None)
             Initializes a Comment object.
@@ -76,15 +74,19 @@ class Comment:
             Adds an instance of this rubric comment.
 
         as_dict()
-            Returns the kwargs dict for creating a comment.
+            Returns the kwargs dict for creating this comment.
+
+        for_file()
+            Returns a representation of this comment for a file.
     """
 
-    def __init__(self, comment_id, file_id, file_name, text='',
+    def __init__(self, s_id, comment_id, file_id, file_name, text='',
                  line=None, start_line=None, end_line=None,
                  start_char=None, end_char=None):
         """Initializes a Comment object.
 
         Args:
+            s_id (int): The submission id.
             comment_id (int): The rubric comment id.
             file_id (int): The id of the file where the comment should be applied.
             file_name (str): The name of the file where the comment should be applied.
@@ -104,6 +106,8 @@ class Comment:
         Raises:
             ValueError: If `comment_id` is not used in this program.
         """
+
+        self._s_id = s_id
 
         self._rubric_comment = comment_id
         self._file_id = file_id
@@ -146,6 +150,7 @@ class Comment:
             comment (codepost.models.comments.Comments): The comment.
         """
 
+        s_id = file.submission
         comment_id = comment.rubricComment
         file_id = file.id
         file_name = file.name
@@ -155,7 +160,7 @@ class Comment:
         start_char = comment.startChar
         end_char = comment.endChar
 
-        return cls(comment_id, file_id, file_name, text=text,
+        return cls(s_id, comment_id, file_id, file_name, text=text,
                    start_line=start_line, end_line=end_line,
                    start_char=start_char, end_char=end_char)
 
@@ -184,7 +189,7 @@ class Comment:
         self._extra_instances.append(line_num + 1)
 
     def as_dict(self) -> dict:
-        """Returns the kwargs dict for creating a comment."""
+        """Returns the kwargs dict for creating this comment."""
         text = self._text
         num_extra = len(self._extra_instances)
         if num_extra > 0:
@@ -212,6 +217,10 @@ class Comment:
             'author': COMMENT_AUTHOR,
         }
 
+    def for_file(self) -> str:
+        """Returns a representation of this comment for a file."""
+        return ','.join((str(self._s_id), self._file_name, self._comment_name))
+
 
 # ===========================================================================
 
@@ -221,6 +230,10 @@ class SubmissionComments:
     Constructors:
         SubmissionComments(submission)
             Initializes a SubmissionComments object.
+
+    Properties:
+        num_comments (int): The number of comments to apply to this submission.
+        for_file (list[str]): The comments in str format for saving in the file.
 
     Methods:
         add_comment(*args, **kwargs)
@@ -248,15 +261,25 @@ class SubmissionComments:
         # get all existing comments
         self._existing_comments = set()
         for comment in comments:
-            if comment.rubricComment is None: continue
+            rubric_comment = comment.rubricComment
+            if rubric_comment is None: continue
             # not using these rubric comments
-            if comment.rubricComment not in ID_TO_NAME: continue
-
+            if rubric_comment not in ID_TO_NAME: continue
             # add comment name to existing
-            self._existing_comments.add(ID_TO_NAME[comment.rubricComment])
+            self._existing_comments.add(ID_TO_NAME[rubric_comment])
 
         self._comments = dict()
-        self._applying = list()
+        self._for_file = list()
+
+    # ==================================================
+
+    @property
+    def num_comments(self):
+        return len(self._comments)
+
+    @property
+    def for_file(self):
+        return self._for_file
 
     # ==================================================
 
@@ -267,7 +290,7 @@ class SubmissionComments:
             The args and kwargs to create a Comment.
         """
 
-        comment = Comment(*args, **kwargs)
+        comment = Comment(self._s_id, *args, **kwargs)
         name = comment.name
 
         # don't add repeat comments
@@ -275,27 +298,26 @@ class SubmissionComments:
             return
 
         if name in self._comments:
-            # update old comment with new instances
-            self._comments[name].add_instance(comment.line_num)
+            # update old comment with new instances if in same file and not same line
+            old_comment = self._comments[name]
+            if old_comment.file_name == comment.file_name and old_comment.line_num != comment.line_num:
+                old_comment.add_instance(comment.line_num)
         else:
             # new comment
             self._comments[name] = comment
+            self._for_file.append(comment.for_file())
 
-    def applying(self) -> tuple[list[dict], list[str]]:
+    def applying(self) -> list[dict]:
         """Returns the comments to apply to this submission.
 
         Returns:
-            tuple[list[dict], list[str]]: The comments to apply in kwargs format,
-                and the comments in str format for saving in the file.
+            list[dict]: The comments to apply in kwargs format.
         """
 
         applying = list()
-        for_file = list()
-        for name, comment in self._comments.items():
+        for comment in self._comments.values():
             applying.append(comment.as_dict())
-            for_file.append(','.join((str(self._s_id), comment.file_name, name)))
-
-        return applying, for_file
+        return applying
 
 
 # ===========================================================================
@@ -313,9 +335,9 @@ def get_rubric_comment_ids(assignment):
 
     for category in assignment.rubricCategories:
         for comment in category.rubricComments:
-            if comment.name in RUBRIC_COMMENTS:
-                COMMENTS[comment.name] = comment.id
-                ID_TO_NAME[comment.id] = comment.name
+            if comment.name not in RUBRIC_COMMENTS: continue
+            COMMENTS[comment.name] = comment.id
+            ID_TO_NAME[comment.id] = comment.name
 
     diff = set(RUBRIC_COMMENTS) - set(COMMENTS.keys())
     if len(diff) > 0:
@@ -516,7 +538,10 @@ def create_comments(assignment) -> list[SubmissionComments]:
 
         if submission.isFinalized: continue
 
-        all_comments.append(create_submission_comments(submission))
+        submission_comments = create_submission_comments(submission)
+
+        if submission_comments.num_comments > 0:
+            all_comments.append(submission_comments)
 
         if i % 100 == 99:
             logger.debug('Done with submission {}', i + 1)
@@ -577,9 +602,8 @@ def main(course_period, assignment_name, testing):
     applying = list()
     for_file = list()
     for submission_comments in all_submission_comments:
-        lists = submission_comments.applying()
-        applying += lists[0]
-        for_file += lists[1]
+        applying += submission_comments.applying()
+        for_file += submission_comments.for_file
 
     logger.info('Saving rubric comments to "{}" file', COMMENTS_FILE)
     with open(COMMENTS_FILE, 'w') as f:
