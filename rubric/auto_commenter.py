@@ -37,33 +37,283 @@ RUBRIC_COMMENTS = [
     'no-space-after-slash',  # 72151
 ]
 
-ONLY_ONCE = [
-    'no-comments',
-]
-
+# ids of the rubric comments
+# name -> id
 COMMENTS = dict()
 
+# names of the rubric comments
+# id -> name
+ID_TO_NAME = dict()
+
+# ids of the missing file rubric comments
+# filename -> id
 MISSING = dict()
 
 
 # ===========================================================================
 
+class Comment:
+    """Comment object: Represents a Comment.
+
+    Constructors:
+        Comment(comment_id, file_id, file_name, text='',
+                line=None, start_line=None, end_line=None,
+                start_char=None, end_char=None)
+            Initializes a Comment object.
+
+        Comment.from_codepost(file, comment):
+            Initializes a Comment object from a codePost comment.
+
+    Properties:
+        name (str): The rubric comment name.
+        file_name (str): The name of the file where the comment should be applied.
+        line_num (int): The start line number of the comment.
+
+    Methods:
+        add_instance(line_num)
+            Adds an instance of this rubric comment.
+
+        as_dict()
+            Returns the kwargs dict for creating a comment.
+    """
+
+    def __init__(self, comment_id, file_id, file_name, text='',
+                 line=None, start_line=None, end_line=None,
+                 start_char=None, end_char=None):
+        """Initializes a Comment object.
+
+        Args:
+            comment_id (int): The rubric comment id.
+            file_id (int): The id of the file where the comment should be applied.
+            file_name (str): The name of the file where the comment should be applied.
+            text (str): The custom text of the comment.
+                Default is the empty string.
+            line (int): The line number of the comment.
+                Default is 0.
+            start_line (int): The start line number of the comment. Overrides `line`.
+                Default is 0.
+            end_line (int): The end line number of the comment. Overrides `line`.
+                Default is 0.
+            start_char (int): The start char index of the comment.
+                Default is 0.
+            end_char (int): The end char index of the comment.
+                Default is 0.
+
+        Raises:
+            ValueError: If `comment_id` is not used in this program.
+        """
+
+        self._rubric_comment = comment_id
+        self._file_id = file_id
+
+        # for saving in file
+        if comment_id not in ID_TO_NAME:
+            raise ValueError(f'rubric comment {comment_id} not used in this program')
+        self._comment_name = ID_TO_NAME[comment_id]
+        self._file_name = file_name
+
+        self._text = text
+        self._extra_instances = list()
+
+        self._start_line = 0
+        if start_line is not None:
+            self._start_line = start_line
+        elif line is not None:
+            self._start_line = line
+
+        self._end_line = self._start_line
+        if end_line is not None and end_line > self._start_line:
+            self._end_line = end_line
+
+        self._start_char = 0
+        if start_char is not None:
+            self._start_char = start_char
+
+        self._end_char = 0
+        if end_char is not None:
+            self._end_char = end_char
+        if self._start_line == self._end_line and self._end_char < self._start_char:
+            self._end_char = self._start_char
+
+    @classmethod
+    def from_codepost(cls, file, comment):
+        """Initializes a Comment object from a codePost comment.
+
+        Args:
+            file (codepost.models.files.Files): The file.
+            comment (codepost.models.comments.Comments): The comment.
+        """
+
+        comment_id = comment.rubricComment
+        file_id = file.id
+        file_name = file.name
+        text = comment.text
+        start_line = comment.startLine
+        end_line = comment.endLine
+        start_char = comment.startChar
+        end_char = comment.endChar
+
+        return cls(comment_id, file_id, file_name, text=text,
+                   start_line=start_line, end_line=end_line,
+                   start_char=start_char, end_char=end_char)
+
+    # ==================================================
+
+    @property
+    def name(self):
+        return self._comment_name
+
+    @property
+    def file_name(self):
+        return self._file_name
+
+    @property
+    def line_num(self):
+        return self._start_line
+
+    # ==================================================
+
+    def add_instance(self, line_num):
+        """Adds an instance of this rubric comment.
+
+        Args:
+            line_num (int): The line number of the repeat rubric comment (0-indexed).
+        """
+        self._extra_instances.append(line_num + 1)
+
+    def as_dict(self) -> dict:
+        """Returns the kwargs dict for creating a comment."""
+        text = self._text
+        num_extra = len(self._extra_instances)
+        if num_extra > 0:
+            if text != '':
+                text += '\n\n'
+            if num_extra == 1:
+                text += f'Also see line {self._extra_instances[0]}.'
+            elif num_extra == 2:
+                text += f'Also see lines {self._extra_instances[0]} and {self._extra_instances[1]}.'
+            else:
+                text += 'Also see lines '
+                # text += ''.join(f'{line}, ' for line in self._extra_instances[:-1])
+                for line in self._extra_instances[:-1]:
+                    text += str(line) + ', '
+                text += f'and {self._extra_instances[-1]}.'
+
+        return {
+            'text': text,
+            'startChar': self._start_char,
+            'endChar': self._end_char,
+            'startLine': self._start_line,
+            'endLine': self._end_line,
+            'file': self._file_id,
+            'rubricComment': self._rubric_comment,
+            'author': COMMENT_AUTHOR,
+        }
+
+
+# ===========================================================================
+
+class SubmissionComments:
+    """SubmissionComments object: Represents the comments for a submission.
+
+    Constructors:
+        SubmissionComments(submission)
+            Initializes a SubmissionComments object.
+
+    Methods:
+        add_comment(*args, **kwargs)
+            Adds a comment to this submission.
+
+        applying()
+            Returns the comments to apply to this submission.
+    """
+
+    def __init__(self, submission, comments=None):
+        """Initializes a SubmissionComments object.
+
+        Args:
+            submission (codepost.models.submissions.Submissions): The submission.
+            comments (list): The comments in this submission.
+                Default is None. If not given, will get from `submission`.
+        """
+
+        self._submission = submission
+        self._s_id = submission.id
+
+        if comments is None:
+            comments = [c for file in submission.files for c in file.comments]
+
+        # get all existing comments
+        self._existing_comments = set()
+        for comment in comments:
+            if comment.rubricComment is None: continue
+            # not using these rubric comments
+            if comment.rubricComment not in ID_TO_NAME: continue
+
+            # add comment name to existing
+            self._existing_comments.add(ID_TO_NAME[comment.rubricComment])
+
+        self._comments = dict()
+        self._applying = list()
+
+    # ==================================================
+
+    def add_comment(self, *args, **kwargs):
+        """Adds a comment to this submission.
+
+        Args:
+            The args and kwargs to create a Comment.
+        """
+
+        comment = Comment(*args, **kwargs)
+        name = comment.name
+
+        # don't add repeat comments
+        if name in self._existing_comments:
+            return
+
+        if name in self._comments:
+            # update old comment with new instances
+            self._comments[name].add_instance(comment.line_num)
+        else:
+            # new comment
+            self._comments[name] = comment
+
+    def applying(self) -> tuple[list[dict], list[str]]:
+        """Returns the comments to apply to this submission.
+
+        Returns:
+            tuple[list[dict], list[str]]: The comments to apply in kwargs format,
+                and the comments in str format for saving in the file.
+        """
+
+        applying = list()
+        for_file = list()
+        for name, comment in self._comments.items():
+            applying.append(comment.as_dict())
+            for_file.append(','.join((str(self._s_id), comment.file_name, name)))
+
+        return applying, for_file
+
+
+# ===========================================================================
+
 def get_rubric_comment_ids(assignment):
-    """Get the ids for the rubric comments in COMMENTS.
+    """Gets the ids for the rubric comments in COMMENTS.
 
     Args:
         assignment (codepost.models.assignments.Assignments): The assignment.
     """
     global COMMENTS
+    global ID_TO_NAME
 
     logger.info('Getting ids for rubric comments')
 
-    # comments = [comment for c in assignment.rubricCategories for comment in c.rubricComments]
-    comments = sum((c.rubricComments for c in assignment.rubricCategories), [])
-
-    for c in comments:
-        if c.name in RUBRIC_COMMENTS:
-            COMMENTS[c.name] = c.id
+    for category in assignment.rubricCategories:
+        for comment in category.rubricComments:
+            if comment.name in RUBRIC_COMMENTS:
+                COMMENTS[comment.name] = comment.id
+                ID_TO_NAME[comment.id] = comment.name
 
     diff = set(RUBRIC_COMMENTS) - set(COMMENTS.keys())
     if len(diff) > 0:
@@ -75,12 +325,13 @@ def get_rubric_comment_ids(assignment):
 
 
 def get_missing_comment_ids(assignment):
-    """Get the ids for the rubric comments in the "MISSING" category, if it exists.
+    """Gets the ids for the rubric comments in the "MISSING" category, if it exists.
 
     Args:
         assignment (codepost.models.assignments.Assignments): The assignment.
     """
     global MISSING
+    global ID_TO_NAME
 
     logger.info('Getting ids for "MISSING" rubric comments')
 
@@ -95,31 +346,26 @@ def get_missing_comment_ids(assignment):
     for comment in comments:
         filename = comment.text.split('`')[1]
         MISSING[filename] = comment.id
+        ID_TO_NAME[comment.id] = 'missing-' + filename.split('.')[0].lower()
 
     logger.info('Got ids for "MISSING" rubric comments')
 
 
 # ===========================================================================
 
-def parse_file(s_id, file) -> (list, int):
+def parse_file(submission_comments, file) -> int:
     """Parses a file for instances of rubric comments.
 
     Args:
-        s_id (int): The submission id.
+        submission_comments (SubmissionComments): The SubmissionComments object for this submission.
         file (codepost.models.files.Files): The file.
 
     Returns:
-        (list, int): The comments, in a dict format with the keys:
-                (text, startChar, endChar, startLine, endLine, file, rubricComment)
-            and the number of comments in the file.
+        int: The number of comments in the file.
     """
-
-    # TODO: no-space-after-slash only once per submission
 
     f_id = file.id
     f_name = file.name
-
-    comments = list()
 
     # possible states:
     # - normal
@@ -141,14 +387,17 @@ def parse_file(s_id, file) -> (list, int):
             state = 'normal'
 
         for char_num, c in enumerate(line):
+
             if state == 'normal':
                 if c == '/':
                     state = 'first slash'
                 elif c == '"':
                     state = 'in string'
+
             elif state == 'in string':
                 if c == '"':
                     state = 'normal'
+
             elif state == 'first slash':
                 if c == '/':
                     state = 'slash comment'
@@ -158,25 +407,21 @@ def parse_file(s_id, file) -> (list, int):
                     state = 'in string'
                 else:
                     state = 'normal'
+
             elif state == 'slash comment':
                 num_comments += 1
-                if 'no-space-after-slash' in COMMENTS and c != ' ':
+
+                if c.isalpha() and 'no-space-after-slash' in COMMENTS:
                     # in a comment, but there's no space
-                    comments.append({
-                        'text': '',
-                        'startChar': char_num - 2,
-                        'endChar': char_num,
-                        'startLine': line_num,
-                        'endLine': line_num,
-                        'file': f_id,
-                        'rubricComment': COMMENTS['no-space-after-slash'],
-                        'submission': s_id,
-                        'file_name': f_name,
-                        'comment_name': 'no-space-after-slash',
-                    })
+                    submission_comments.add_comment(
+                        COMMENTS['no-space-after-slash'], f_id, f_name,
+                        line=line_num, start_char=char_num - 2, end_char=char_num
+                    )
+
                 # rest of the line is part of the comment
                 state = 'normal'
                 break
+
             elif state == 'start multi comment':
                 num_comments += 1
 
@@ -184,134 +429,79 @@ def parse_file(s_id, file) -> (list, int):
                     state = 'first asterisk'
                     continue
 
-                if 'no-space-after-slash' in COMMENTS and c != ' ':
+                if c.isalpha() and 'no-space-after-slash' in COMMENTS:
                     # in a multi line comment, but there's no space
                     # /** passes, and doesn't check after that
-                    comments.append({
-                        'text': '',
-                        'startChar': char_num - 2,
-                        'endChar': char_num,
-                        'startLine': line_num,
-                        'endLine': line_num,
-                        'file': f_id,
-                        'rubricComment': COMMENTS['no-space-after-slash'],
-                        'submission': s_id,
-                        'file_name': f_name,
-                        'comment_name': 'no-space-after-slash',
-                    })
+                    submission_comments.add_comment(
+                        COMMENTS['no-space-after-slash'], f_id, f_name,
+                        line=line_num, start_char=char_num - 2, end_char=char_num
+                    )
 
                 state = 'in multi comment'
 
             elif state == 'in multi comment':
                 if c == '*':
                     state = 'first asterisk'
+
             elif state == 'first asterisk':
                 if c == '/':
                     state = 'normal'
                 elif c != '*':
                     state = 'in multi comment'
 
-    return comments, num_comments
+    return num_comments
 
 
 # ===========================================================================
 
-def create_submission_comments(s_id, s_files) -> list:
+def create_submission_comments(submission) -> SubmissionComments:
     """Creates automatically applied rubric comments for a submission.
 
     Args:
-        s_id (int): The submission id.
-        s_files (list): All the files in this submission.
+        submission (codepost.models.submissions.Submissions): The submission.
 
     Returns:
-        list: The comments, in a dict format with the keys:
-            (text, startChar, endChar, startLine, endLine, file, rubricComment,
-             submission, file_name, comment_name)
+        SubmissionComments: The SubmissionComments object for this submission.
     """
 
-    all_comments = list()
+    files = dict()
+    comments = list()
+    for file in submission.files:
+        files[file.name] = file
+        comments += file.comments
 
-    # only look through files that don't have any comments
-    files = list()
-    # find existing comments
-    ids = set(MISSING.values()).union(COMMENTS[name] for name in ONLY_ONCE if name in COMMENTS)
-    existing_comments = set()
-    for file in s_files:
-        if len(file.comments) == 0:
-            files.append(file)
-            continue
+    submission_comments = SubmissionComments(submission, comments)
 
-        for comment in file.comments:
-            if comment.rubricComment in ids:
-                existing_comments.add(comment.rubricComment)
-    del ids
+    first_file = files[min(files.keys())]
 
-    if len(files) == 0:
-        return all_comments
-
-    first_file = min(files, key=lambda f: f.name)
-
-    # checking for missing files
-    missing_files = set(MISSING.keys()) - set(f.name for f in s_files)
+    # check for missing files
+    missing_files = set(MISSING.keys()) - set(files.keys())
     for filename in missing_files:
-        if MISSING[filename] not in existing_comments:
-            all_comments.append({
-                'text': '',
-                'startChar': 0,
-                'endChar': 0,
-                'startLine': 0,
-                'endLine': 0,
-                'file': first_file.id,
-                'rubricComment': MISSING[filename],
-                'submission': s_id,
-                'file_name': first_file.name,
-                'comment_name': 'missing-' + filename.split('.')[0].lower(),
-            })
-    del missing_files
+        submission_comments.add_comment(MISSING[filename], first_file.id, first_file.name)
 
     # parsing files
     total_num_comments = 0
-    for file in files:
-        # extension could be java or .java; not reliable enough to use
-        if not file.name.endswith('java'): continue
-
-        comments, num_comments = parse_file(s_id, file)
-
-        # only update all_comments with comments that haven't occurred yet
-        all_comments += [c for c in comments if c['rubricComment'] not in existing_comments]
-        total_num_comments += num_comments
+    for name, file in files.items():
+        if not name.endswith('.java'): continue
+        total_num_comments += parse_file(submission_comments, file)
 
     # no comments in any file
     if total_num_comments == 0:
-        if COMMENTS['no-comments'] not in existing_comments:
-            all_comments.append({
-                'text': '',
-                'startChar': 0,
-                'endChar': 0,
-                'startLine': 0,
-                'endLine': 0,
-                'file': first_file.id,
-                'rubricComment': COMMENTS['no-comments'],
-                'submission': s_id,
-                'file_name': first_file.name,
-                'comment_name': 'no-comments',
-            })
+        submission_comments.add_comment(COMMENTS['no-comments'], first_file.id, first_file.name)
 
-    return all_comments
+    return submission_comments
 
 
 # ===========================================================================
 
-def create_comments(assignment) -> list:
+def create_comments(assignment) -> list[SubmissionComments]:
     """Creates automatically applied rubric comments for an assignment.
 
     Args:
         assignment (codepost.models.assignments.Assignments): The assignment.
 
     Returns:
-        list: The comments, in a dict format with the keys:
-            (text, startChar, endChar, startLine, endLine, file, rubricComment,
-             submission, file_name, comment_name)
+        list[SubmissionComments]: The SubmissionComment objects for each submission.
     """
 
     logger.info('Creating automatic rubric comments')
@@ -324,10 +514,7 @@ def create_comments(assignment) -> list:
 
         if submission.isFinalized: continue
 
-        s_id = submission.id
-        all_files = submission.files
-
-        all_comments.append(create_submission_comments(s_id, all_files))
+        all_comments.append(create_submission_comments(submission))
 
         if i % 100 == 99:
             logger.debug('Done with submission {}', i + 1)
@@ -383,16 +570,22 @@ def main(course_period, assignment_name, testing):
 
     get_missing_comment_ids(assignment)
 
-    apply_comments = create_comments(assignment)
+    all_submission_comments = create_comments(assignment)
+
+    applying = list()
+    for_file = list()
+    for submission_comments in all_submission_comments:
+        lists = submission_comments.applying()
+        applying += lists[0]
+        for_file += lists[1]
 
     logger.info('Saving rubric comments to "{}" file', COMMENTS_FILE)
     with open(COMMENTS_FILE, 'w') as f:
-        for comment in apply_comments:
-            f.write(','.join((str(comment['submission']), comment['file_name'], comment['comment_name'])) + '\n')
+        f.write('\n'.join(for_file) + '\n')
 
-    logger.info('Applying {} rubric comments', len(apply_comments))
-    for comment in apply_comments:
-        codepost.comment.create(**comment, author=COMMENT_AUTHOR)
+    logger.info('Applying {} rubric comments', len(all_submission_comments))
+    for comment in applying:
+        codepost.comment.create(**comment)
 
     logger.info('Done')
 
