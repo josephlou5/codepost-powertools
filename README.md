@@ -97,10 +97,13 @@ Command-line arguments:
 ### track_comments.py
 Track rubric comment usage for students and graders.
 Creates report files and attaches them to respective submissions.
+Has option to read reports from files and save reports as files instead of applying them on codePost.
 
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment to apply the reports to.
 - `by`: The format to return the data. Default is `"assignment"`. Invalid values will be set to default.
   - `"assignment"`: assignment name: list of comments
   - `"comment"`: comment name: list of assignments
+- `-f`/`--from-file`: Whether to read the reports from files. Default is `False`.
+- `-s`/`--save-file`: Whether to save the reports as files. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.

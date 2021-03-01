@@ -1,6 +1,7 @@
 """
 track_comments.py
 Track rubric comment usage for students and graders.
+Has option to read reports from files and save reports as files instead of applying them on codePost.
 
 GitHub repo:
 https://github.com/josephlou5/codepost-rubric-import-export
@@ -12,6 +13,7 @@ https://docs.codepost.io/docs
 
 # ===========================================================================
 
+import os
 import datetime
 import click
 from loguru import logger
@@ -43,6 +45,7 @@ Loops
 
 REPORT_FILENAME = 'REPORT.txt'
 REPORT_EXT = '.txt'
+REPORT_IDS_FILE = 'report_ids.txt'
 
 TODAY = datetime.date.today()
 
@@ -117,6 +120,8 @@ def get_student_assignment_comments(assignment) -> dict:
             { student: (assignment_summary, [comments]) }
     """
 
+    logger.debug('Getting rubric comment usage for "{}" assignment', assignment.name)
+
     data = dict()
 
     submissions = assignment.list_submissions()
@@ -127,10 +132,12 @@ def get_student_assignment_comments(assignment) -> dict:
 
     for submission in submissions:
 
-        assignment_summary = summary(assignment.name,
-                                     submitted=True,
-                                     graded=submission.isFinalized and assignment.isReleased,
-                                     viewed=submission.list_view_history()['hasViewed'])
+        assignment_summary = summary(
+            assignment.name,
+            submitted=True,
+            graded=submission.isFinalized and assignment.isReleased,
+            viewed=submission.list_view_history()['hasViewed']
+        )
 
         submission_comments = list()
         for f in submission.files:
@@ -171,7 +178,11 @@ def get_student_comments(course, stop_assignment_name, by='assignment') -> dict:
 
     data = dict()
 
+    # get all students in this course
     all_students = set()
+    for student in codepost.roster.retrieve(course.id).students:
+        data[student] = (list(), dict())
+        all_students.add(student)
 
     for assignment in sorted(course.assignments, key=lambda a: a.sortKey):
 
@@ -181,17 +192,11 @@ def get_student_comments(course, stop_assignment_name, by='assignment') -> dict:
             break
 
         # get data for this assignment
-        logger.debug('Getting rubric comment usage for "{}" assignment', a_name)
         this_assignment = get_student_assignment_comments(assignment)
 
         # save data
         students_in_assignment = set(this_assignment.keys())
-        students_to_add = students_in_assignment - all_students
         students_not_here = all_students - students_in_assignment
-
-        for student in students_to_add:
-            data[student] = (list(), dict())
-            all_students.add(student)
 
         for student, (assignment_summary, comments) in this_assignment.items():
 
@@ -253,7 +258,46 @@ def get_grader_comments(by='assignment') -> dict:
 
 # ===========================================================================
 
-def create_reports(data, by='assignment') -> dict:
+def get_report_files(course) -> dict[str, str]:
+    """Gets the reports from files.
+
+    Args:
+        course (codepost.models.courses.Courses): The course.
+
+    Returns:
+        dict[str, str]: The student report strings in the format:
+            { student: report_str }
+    """
+
+    # TODO what if there are missing student files? compare with roster
+
+    logger.info('Getting reports from files')
+
+    reports = dict()
+
+    course_info = f'{course.name} {course.period}'
+    folder_path = os.path.join('reports', course_info)
+
+    # checking if files exist
+    if not os.path.exists(folder_path):
+        logger.warning('Report files do not exist')
+        return reports
+
+    # reading reports
+    for file in os.listdir(folder_path):
+        if not file.endswith('@princeton.edu.txt'):
+            continue
+        # take off .txt extension
+        student = file[:-4]
+        with open(os.path.join(folder_path, file), 'r') as f:
+            reports[student] = f.read()
+
+    return reports
+
+
+# ===========================================================================
+
+def create_reports(data, by='assignment') -> tuple[dict[str, int], dict[str, str]]:
     """Creates the report files for each student.
 
     Args:
@@ -261,16 +305,21 @@ def create_reports(data, by='assignment') -> dict:
         by (str): The format of the data.
 
     Returns:
-        dict: The reports in the format:
-            { student: report_code }
+        tuple[dict[str, int], dict[str, str]]: The student report ids in the format:
+                { student: id }
+            and the report strings in the format:
+                { student: report_str }
     """
 
     logger.info('Creating report files for each student')
 
+    ids = dict()
     reports = dict()
 
-    for student, (summaries, info) in data.items():
-        report_str = ''
+    for i, (student, (summaries, info)) in enumerate(data.items()):
+        ids[student] = (i + 1)
+
+        report_str = f'{REPORT_FILENAME}\nLast updated: {TODAY}\nReport ID: {i + 1}\n\n'
 
         # summary
         report_str += 'SUMMARY\n' + '\n'.join(summaries) + '\n\n'
@@ -290,7 +339,62 @@ def create_reports(data, by='assignment') -> dict:
 
         reports[student] = report_str + '\n'
 
-    return reports
+    return ids, reports
+
+
+# ===========================================================================
+
+def save_ids(course, ids):
+    """Saves the report ids to a file.
+
+    Args:
+        course (codepost.models.courses.Courses): The course.
+        ids (dict[str, int]): The reports in the format:
+            { student: id }
+    """
+
+    logger.info('Saving report ids to "{}"', REPORT_IDS_FILE)
+
+    with open(REPORT_IDS_FILE, 'w') as f:
+        f.write(f'{course.name} {course.period}\n')
+        for student, i in ids.items():
+            f.write(f'{i},{student}\n')
+
+
+# ===========================================================================
+
+def save_reports(course, ids, reports):
+    """Saves the reports as files.
+
+    Args:
+        course (codepost.models.courses.Courses): The course.
+        ids (dict[str, int]): The reports in the format:
+            { student: id }
+        reports (dict[str, str]): The reports in the format:
+            { student: report_str }
+    """
+
+    logger.info('Saving reports as files')
+
+    course_info = f'{course.name} {course.period}'
+    folder_path = os.path.join('reports', course_info)
+
+    # creating directories if don't exist
+    if not os.path.exists('reports'):
+        os.mkdir('reports')
+    if not os.path.exists(folder_path):
+        os.mkdir(folder_path)
+
+    # saving ids
+    with open(os.path.join(folder_path, f'_{REPORT_IDS_FILE}'), 'w') as f:
+        f.write(f'{course_info}\n')
+        for student, i in ids.items():
+            f.write(f'{i},{student}\n')
+
+    # saving reports
+    for student, report_str in reports.items():
+        with open(os.path.join(folder_path, f'{student}.txt'), 'w') as f:
+            f.write(report_str)
 
 
 # ===========================================================================
@@ -300,7 +404,7 @@ def apply_reports(assignment, reports):
 
     Args:
         assignment (codepost.models.assignments.Assignments): The assignment.
-        reports (dict): The reports in the format:
+        reports (dict[str, str]): The reports in the format:
             { student: report_str }
     """
 
@@ -310,8 +414,7 @@ def apply_reports(assignment, reports):
 
         if submission.isFinalized: continue
 
-        report_str = (REPORT_FILENAME + '\nLast updated: ' + str(TODAY) + '\n\n' +
-                      '\n'.join(reports[student] for student in submission.students if student in reports))
+        report_str = '\n'.join(reports[student] for student in submission.students if student in reports)
 
         # no reports exist for the students
         if report_str == '':
@@ -348,11 +451,16 @@ def apply_reports(assignment, reports):
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
 @click.argument('by', type=str, required=False)
+@click.option('-f', '--from-file', is_flag=True, default=False, flag_value=True,
+              help='Whether to read the reports from files. Default is False.')
+@click.option('-s', '--save-file', is_flag=True, default=False, flag_value=True,
+              help='Whether to save the reports as files. Default is False.')
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
-def main(course_period, assignment_name, by, testing):
+def main(course_period, assignment_name, by, from_file, save_file, testing):
     """
     Track rubric comment usage for students and graders.
+    Has option to read reports from files and save reports as files instead of applying them on codePost.
 
     \b
     Args:
@@ -362,6 +470,10 @@ def main(course_period, assignment_name, by, testing):
                 assignment: assignment_name -> [comments]
                 comment: comment -> [assignments]
             Default is 'assignment'. Invalid values will be set to default. \f
+        from_file (bool): Whether to read the reports from files.
+            Default is False.
+        save_file (bool): Whether to save the reports as files.
+            Default is False.
         testing (bool): Whether to run as a test.
             Default is False.
     """
@@ -395,11 +507,26 @@ def main(course_period, assignment_name, by, testing):
     if by not in ('assignment', 'comment'):
         by = 'assignment'
 
-    data = get_student_comments(course, assignment_name, by)
+    ids, reports = None, None
 
-    reports = create_reports(data, by)
+    if from_file:
+        reports = get_report_files(course)
+        if len(reports) == 0:
+            # didn't succeed; get from assignments
+            from_file = False
+    if not from_file:
+        data = get_student_comments(course, assignment_name, by)
+        ids, reports = create_reports(data, by)
 
-    apply_reports(assignment, reports)
+    if save_file:
+        if not from_file:
+            # no need to save if read from file; it's the same thing
+            save_reports(course, ids, reports)
+    else:
+        if not from_file:
+            # no need to save if read from file; it's the same thing
+            save_ids(course, ids)
+        apply_reports(assignment, reports)
 
     logger.info('Done')
 
