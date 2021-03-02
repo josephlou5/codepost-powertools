@@ -269,8 +269,6 @@ def get_report_files(course) -> dict[str, str]:
             { student: report_str }
     """
 
-    # TODO what if there are missing student files? compare with roster
-
     logger.info('Getting reports from files')
 
     reports = dict()
@@ -291,6 +289,15 @@ def get_report_files(course) -> dict[str, str]:
         student = file[:-4]
         with open(os.path.join(folder_path, file), 'r') as f:
             reports[student] = f.read()
+
+    # check missing
+    students = set(reports.keys())
+    all_students = set(codepost.roster.retrieve(course.id).students)
+    missing = all_students - students
+    if len(missing) > 0:
+        logger.warning('Missing {} report files:', len(missing))
+        for student in sorted(missing):
+            logger.warning('  {}', student)
 
     return reports
 

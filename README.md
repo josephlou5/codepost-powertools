@@ -105,5 +105,6 @@ Has option to read reports from files and save reports as files instead of apply
   - `"assignment"`: assignment name: list of comments
   - `"comment"`: comment name: list of assignments
 - `-f`/`--from-file`: Whether to read the reports from files. Default is `False`.
+  - If reports files for some students are missing, won't generate a report for them.
 - `-s`/`--save-file`: Whether to save the reports as files. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
