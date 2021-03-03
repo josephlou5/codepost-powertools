@@ -607,6 +607,8 @@ def main(course_period, assignment_name, testing):
 
     logger.info('Saving rubric comments to "{}" file', COMMENTS_FILE)
     with open(COMMENTS_FILE, 'w') as f:
+        f.write(f'{course.name} {course.period}\n')
+        f.write(assignment_name + '\n')
         f.write('\n'.join(for_file) + '\n')
 
     logger.info('Applying {} rubric comments', len(applying))

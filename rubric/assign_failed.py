@@ -36,16 +36,18 @@ def validate_grader(course, grader) -> bool:
 
 # ===========================================================================
 
-def get_failed_submissions(assignment, cutoff, search_all) -> (list, list, int):
+def get_failed_submissions(assignment, cutoff=None, search_all=False) -> tuple[list[int], list[str], int]:
     """Gets all the failed submissions from an assignment.
 
     Args:
         assignment (codepost.models.assignments.Assignment): The assignment.
-        cutoff (int): The number of tests that denote "passed".
+        cutoff (int): The number of tests that denote "passed". Must be positive.
+            Default is all passed (None).
         search_all (bool): Whether to search all submissions, not just those with no grader.
+            Default is False.
 
     Returns:
-        (list, list, int): The failed submission ids, the name of the students,
+        tuple[list[int], list[str], int]: The failed submission ids, the name of the students,
             and the number of failed submissions.
     """
 
@@ -123,7 +125,7 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
     Args:
         course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment.
-        grader (str): The grader to assign the submissions to.
+        grader (str): The grader to assign the submissions to. Accepts netid or email.
         cutoff (int): The number of tests that denote "passed". Must be positive.
             Default is all passed. \f
         search_all (bool): Whether to search all submissions, not just those with no grader.
@@ -132,7 +134,9 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
             Default is False.
     """
 
-    if cutoff <= 0:
+    if cutoff is None:
+        pass
+    elif cutoff <= 0:
         logger.error('"cutoff" must be positive')
         return
 
@@ -155,11 +159,12 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
     if course is None:
         return
 
+    grader = make_email(grader)
+    logger.info('Validating grader "{}"', grader)
     validated = validate_grader(course, grader)
     if not validated:
         logger.error('Grader "{}" is not a valid grader in this course', grader)
         return
-    logger.info('Grader validated')
 
     logger.info('Getting "{}" assignment', assignment_name)
     assignment = get_assignment(course, assignment_name)

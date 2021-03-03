@@ -4,6 +4,7 @@ Shared methods.
 """
 
 __all__ = [
+    'make_email',
     'log_in_codepost', 'set_up_service_account',
     'get_course', 'get_126_course', 'get_assignment',
     'open_sheet', 'add_temp_worksheet',
@@ -21,6 +22,23 @@ import gspread
 # ===========================================================================
 
 SERVICE_ACCOUNT_FILE = 'service_account.json'
+
+
+# ===========================================================================
+
+def make_email(netid) -> str:
+    """Turns a potential netid into an email.
+
+    Args:
+        netid (str): The netid.
+
+    Returns:
+        str: The email.
+    """
+
+    if netid.endswith('@princeton.edu'):
+        return netid
+    return netid + '@princeton.edu'
 
 
 # ===========================================================================
