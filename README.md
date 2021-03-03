@@ -9,7 +9,8 @@ and the [`gspread` package](https://gspread.readthedocs.io/en/latest/).
 - `click`: For command line interface
 - `loguru`: For logging status messages
 - `time`: For timing
-- `json`: For file dump in `claim.py`
+- `os`: For working with local files and directories
+- `random`: For randomness in `claim.py`
 - `datetime`: For the current date in the report file in `track_comments.py`
 
 ## Usage
@@ -30,9 +31,9 @@ Command-line arguments:
 - `course_period`: The period of the COS126 course to export from.
 - `sheet_name`: The name of the sheet to import the rubrics to.
 - `num_assignments`: The number of assignments to get from the course. Default is ALL.
+- `-i`/`--instances`: Whether to count instances of rubric comments. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.   
   - If running as a test and `num_assignments` is not given, `num_assignments` is set to `1`.
-- `-i`/`--instances`: Whether to count instances of rubric comments. Default is `False`.
 
 ### sheet_to_rubric.py
 Imports a codePost rubric from a Google Sheet, using the `name` field of rubric comments to account for updates.
@@ -42,11 +43,11 @@ Command-line arguments:
 - `sheet_name`: The name of the sheet to pull the rubrics from.
 - `start_sheet`: The index of the first sheet to pull from (0-indexed). Default is `0`.
 - `end_sheet`: The index of the last sheet to pull from (0-indexed). Default is same as `start_sheet`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
-  - If running as a test and `start_sheet` is not given, `start_sheet` is set to `0`.
 - `-o`/`--override`: Whether to override rubrics of assignments. Default is `False`.
 - `-d`/`--delete`: Whether to delete comments that are not in the sheet. Default is `False`.
 - `-w`/`--wipe`: Whether to completely wipe the existing rubric. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+  - If running as a test and `start_sheet` is not given, `start_sheet` is set to `0`.
 
 ### auto_commenter.py
 Automatically add rubric comments to submissions.
@@ -64,7 +65,7 @@ Assign all submissions that fail tests to a grader.
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
-- `grader`: The grader to assign the submissions to.
+- `grader`: The grader to assign the submissions to. Accepts netid or email.
 - `cutoff`: The number of tests that denote "passed". Must be positive. Default is all passed.
 - `-sa`/`--search-all`: Whether to search all submissions, not just those with no grader. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
@@ -95,16 +96,14 @@ Command-line arguments:
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
 ### track_comments.py
-Track rubric comment usage for students and graders.
-Creates report files and attaches them to respective submissions.
-Has option to read reports from files and save reports as files instead of applying them on codePost.
+Track rubric comment usage for students and graders and creates reports.
 
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment to apply the reports to.
-- `by`: The format to return the data. Default is `"assignment"`. Invalid values will be set to default.
-  - `"assignment"`: assignment name: list of comments
-  - `"comment"`: comment name: list of assignments
 - `-f`/`--from-file`: Whether to read the reports from files. Default is `False`.
   - If reports files for some students are missing, won't generate a report for them.
-- `-s`/`--save-file`: Whether to save the reports as files. Default is `False`.
+  - If no report files exist, will grab from codePost.
+- `-s`/`--save-files`: Whether to save the reports as files. Default is `False`.
+  - If reading reports from files was successful, no need to save files again.
+- `-a`/`--apply`: Whether to apply the reports to the submissions. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
