@@ -122,6 +122,11 @@ def get_assignment_rubric(worksheet) -> dict:
 
         rubric[category][1].append(comment)
 
+    # if rubric category has no comments, delete it
+    for category in list(rubric.keys()):
+        if len(rubric[category][1]) == 0:
+            rubric.pop(category)
+
     return rubric
 
 
@@ -295,7 +300,7 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
         if delete_missing:
             logger.debug('Deleting comments not in the sheet')
             for comment in missing_comments:
-                # logger.debug(f'Deleting "{comment.name}" rubric comment')
+                logger.debug(f'Deleting "{comment.name}" rubric comment')
                 comment.delete()
             logger.debug('Deleted {} comments', len(missing_comments))
 
@@ -406,15 +411,15 @@ def create_all_rubrics(rubrics, override_rubric=False, delete_missing=False, wip
 @click.argument('sheet_name', type=str, required=True)
 @click.argument('start_sheet', type=int, required=False)
 @click.argument('end_sheet', type=int, required=False)
-@click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
-              help='Whether to run as a test. Default is False.')
 @click.option('-o', '--override', is_flag=True, default=False, flag_value=True,
               help='Whether to override rubrics of assignments. Default is False.')
 @click.option('-d', '--delete', is_flag=True, default=False, flag_value=True,
               help='Whether to delete comments that are not in the sheet. Default is False.')
 @click.option('-w', '--wipe', is_flag=True, default=False, flag_value=True,
               help='Whether to completely wipe the existing rubric. Default is False.')
-def main(course_period, sheet_name, start_sheet, end_sheet, testing, override, delete, wipe):
+@click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
+              help='Whether to run as a test. Default is False.')
+def main(course_period, sheet_name, start_sheet, end_sheet, override, delete, wipe, testing):
     """
     Imports a codePost rubric from a Google Sheet.
 
@@ -425,14 +430,14 @@ def main(course_period, sheet_name, start_sheet, end_sheet, testing, override, d
         start_sheet (int): The index of the first sheet to pull from (0-indexed).
             Default is 0.
         end_sheet (int): The index of the last sheet to pull from (0-indexed).
-            Default is same as start_sheet. \f
-        testing (bool): Whether to run as a test.
-            Default is False.
+            Default is same as `start_sheet`. \f
         override (bool): Whether to override rubrics of assignments.
             Default is False.
         delete (bool): Whether to delete comments that are not in the sheet.
             Default is False.
         wipe (bool): Whether to completely wipe the existing rubric.
+            Default is False.
+        testing (bool): Whether to run as a test.
             Default is False.
     """
 

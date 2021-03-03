@@ -10,6 +10,7 @@ ignore/
 # output files
 *.txt
 *.json
+*.csv
 
 # PyCharm editor configuration
 .idea
