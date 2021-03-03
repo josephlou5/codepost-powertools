@@ -17,12 +17,13 @@ import click
 from loguru import logger
 import codepost
 import time
+import comma
 
 from shared import *
 
 # ===========================================================================
 
-FAILED_FILE = 'failed_tests_submissions.txt'
+DUMP_FILE = 'failed_tests_submissions.csv'
 
 
 # ===========================================================================
@@ -36,23 +37,36 @@ def validate_grader(course, grader) -> bool:
 
 # ===========================================================================
 
-def get_failed_submissions(assignment, cutoff=None, search_all=False) -> tuple[list[int], list[str], int]:
+def get_num_tests(assignment) -> int:
+    """Gets the number of tests for this assignment.
+
+    Args:
+        assignment (codepost.models.assignments.Assignment): The assignment.
+
+    Returns:
+        int: The number of tests.
+    """
+    return sum(len(category.testCases) for category in assignment.testCategories)
+
+
+# ===========================================================================
+
+def get_failed_submissions(assignment, cutoff, search_all=False) -> dict[int, tuple[str, int]]:
     """Gets all the failed submissions from an assignment.
 
     Args:
         assignment (codepost.models.assignments.Assignment): The assignment.
         cutoff (int): The number of tests that denote "passed". Must be positive.
-            Default is all passed (None).
         search_all (bool): Whether to search all submissions, not just those with no grader.
             Default is False.
 
     Returns:
-        tuple[list[int], list[str], int]: The failed submission ids, the name of the students,
-            and the number of failed submissions.
+        dict[int, tuple[str, int]]: The failed submissions, in the format:
+            { submission_id: (students, tests_passed) }
     """
 
-    failed_submissions = list()
-    student_names = list()
+    failed_submissions = dict()
+    num_failed = 0
 
     submissions = assignment.list_submissions()
     for submission in submissions:
@@ -61,34 +75,22 @@ def get_failed_submissions(assignment, cutoff=None, search_all=False) -> tuple[l
         if not search_all and submission.grader is not None: continue
 
         s_id = submission.id
-        students = ','.join(submission.students)
+        students = ';'.join(submission.students)
 
-        passed_count = 0
-        for test in submission.tests:
-            if test.passed:
-                passed_count += 1
-            elif cutoff is None:
-                # failed a test, add
-                failed_submissions.append(s_id)
-                student_names.append(students)
-                break
-        else:
-            if passed_count == 0:
-                # passed no tests or no tests at all, add
-                failed_submissions.append(s_id)
-                student_names.append(students)
-            elif cutoff is None:
-                # no cutoff and passed all tests
-                pass
-            elif passed_count < cutoff:
-                # passed less than cutoff, add
-                failed_submissions.append(s_id)
-                student_names.append(students)
+        # count tests
+        all_tests = submission.tests
+        total_tests = len(all_tests)
+        failed_count = len([test for test in all_tests if not test.passed])
+        passed_count = total_tests - failed_count
 
-    num_failed = len(failed_submissions)
+        if total_tests == 0 or passed_count < cutoff:
+            # no tests at all (compile error or related) or didn't meet cutoff
+            failed_submissions[s_id] = (students, passed_count)
+            num_failed += 1
+
     logger.debug('Found {} failed submissions', num_failed)
 
-    return failed_submissions, student_names, num_failed
+    return failed_submissions
 
 
 # ===========================================================================
@@ -112,7 +114,8 @@ def assign_submissions(grader, submissions):
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
 @click.argument('grader', type=str, required=True)
-@click.argument('cutoff', type=int, required=False)
+@click.option('-c', '--cutoff', type=int,
+              help='The number of tests that denote "passed". Must be positive. Default is all passed.')
 @click.option('-sa', '--search-all', is_flag=True, default=False, flag_value=True,
               help='Whether to search all submissions, not just those with no grader. Default is False.')
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
@@ -125,9 +128,9 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
     Args:
         course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment.
-        grader (str): The grader to assign the submissions to. Accepts netid or email.
+        grader (str): The grader to assign the submissions to. Accepts netid or email. \f
         cutoff (int): The number of tests that denote "passed". Must be positive.
-            Default is all passed. \f
+            Default is all passed.
         search_all (bool): Whether to search all submissions, not just those with no grader.
             Default is False.
         testing (bool): Whether to run as a test.
@@ -171,19 +174,40 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
     if assignment is None:
         return
 
-    if cutoff is None:
+    total_tests = get_num_tests(assignment)
+
+    # fix cutoff arg
+    if cutoff is None or cutoff == total_tests:
+        cutoff = total_tests
         logger.info('Searching for submissions that failed any tests')
+    elif cutoff > total_tests:
+        logger.info('All submissions will pass less than {} out of {} tests', cutoff, total_tests)
+        return
     else:
         logger.info('Searching for submissions that passed less than {} tests', cutoff)
 
-    failed_submissions, student_names, num_failed = get_failed_submissions(assignment, cutoff, search_all)
+    if cutoff == 0:
+        logger.info('No submissions will pass less than 0 out of {} tests', total_tests)
+        return
 
-    if num_failed > 0:
-        # save in file
-        with open(FAILED_FILE, 'w') as f:
-            f.write('\n'.join(student_names) + '\n')
+    failed_submissions = get_failed_submissions(assignment, cutoff, search_all)
+
+    if len(failed_submissions) > 0:
+        # save to file
+        data = list()
+        tests_key = f'passed_out_of_{total_tests}'
+        for s_id, (student_names, passed) in failed_submissions.items():
+            row = {
+                'submission_id': s_id,
+                'students': student_names,
+                tests_key: passed,
+            }
+            data.append(row)
+        data.sort(key=lambda r: r[tests_key])
+        comma.dump(data, DUMP_FILE)
+
         # assign submissions
-        assign_submissions(grader, failed_submissions)
+        assign_submissions(grader, list(failed_submissions.keys()))
 
     logger.info('Done')
 
