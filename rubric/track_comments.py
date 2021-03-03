@@ -545,7 +545,7 @@ def main(course_period, assignment_name, from_file, save_files, apply, testing):
     if course is None:
         return
 
-    logger.info(f'Getting "{assignment_name}" assignment')
+    logger.info('Getting "{}" assignment', assignment_name)
     assignment = get_assignment(course, assignment_name)
     if assignment is None:
         return

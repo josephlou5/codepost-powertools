@@ -300,7 +300,7 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
         if delete_missing:
             logger.debug('Deleting comments not in the sheet')
             for comment in missing_comments:
-                logger.debug(f'Deleting "{comment.name}" rubric comment')
+                logger.debug('Deleting "{}" rubric comment', comment.name)
                 comment.delete()
             logger.debug('Deleted {} comments', len(missing_comments))
 
@@ -364,7 +364,7 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
         # if anything isn't the same, update the comment
         if old_comment != comment_info:
             codepost.rubric_comment.update(comment.id, **comment_info)
-            logger.debug(f'Updated "{name}"')
+            logger.debug('Updated "{}"', name)
 
     # create new comments
     if len(new_names) == 0:
@@ -374,7 +374,7 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
         for name in new_names:
             comment_info = sheet_comments[name]
             codepost.rubric_comment.create(**comment_info)
-            logger.debug(f'Created "{name}" in "{sheet_categories[name]}"')
+            logger.debug('Created "{}" in "{}"', name, sheet_categories[name])
 
     logger.debug('Rubric creation for "{}" assignment successful', a_name)
 

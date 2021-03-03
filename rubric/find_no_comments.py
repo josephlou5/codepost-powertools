@@ -160,7 +160,7 @@ def main(course_period, assignment_name, list_finalized, list_all, open_finalize
     if course is None:
         return
 
-    logger.info(f'Getting "{assignment_name}" assignment')
+    logger.info('Getting "{}" assignment', assignment_name)
     assignment = get_assignment(course, assignment_name)
     if assignment is None:
         return
