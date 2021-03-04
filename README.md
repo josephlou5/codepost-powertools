@@ -12,6 +12,7 @@ and the [`gspread` package](https://gspread.readthedocs.io/en/latest/).
 - `os`: For working with local files and directories
 - `random`: For randomness in `claim.py`
 - `datetime`: For the current date in the report file in `track_comments.py`
+- `comma`: For working with `.csv` files
 
 ## Usage
 
@@ -61,6 +62,7 @@ Command-line arguments:
 
 ### assign_failed.py
 Assign all submissions that fail tests to a grader.
+Saves all failed submissions to a `.csv` file.
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course.

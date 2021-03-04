@@ -4,9 +4,8 @@ Shared methods.
 """
 
 __all__ = [
-    'make_email',
     'log_in_codepost', 'set_up_service_account',
-    'get_course', 'get_126_course', 'get_assignment',
+    'get_course', 'get_126_course', 'make_email', 'validate_grader', 'get_assignment',
     'open_sheet', 'add_temp_worksheet',
 ]
 
@@ -22,23 +21,6 @@ import gspread
 # ===========================================================================
 
 SERVICE_ACCOUNT_FILE = 'service_account.json'
-
-
-# ===========================================================================
-
-def make_email(netid) -> str:
-    """Turns a potential netid into an email.
-
-    Args:
-        netid (str): The netid.
-
-    Returns:
-        str: The email.
-    """
-
-    if netid.endswith('@princeton.edu'):
-        return netid
-    return netid + '@princeton.edu'
 
 
 # ===========================================================================
@@ -114,6 +96,52 @@ def get_126_course(period) -> codepost.models.courses.Courses:
     """
 
     return get_course('COS126', period)
+
+
+# ===========================================================================
+
+def course_str(course) -> str:
+    """Returns a str representation of a course.
+
+    Args:
+        course (codepost.models.courses.Courses): The course.
+
+    Returns:
+        str: The str representation.
+    """
+    return f'{course.name} {course.period}'
+
+
+# ===========================================================================
+
+def make_email(netid) -> str:
+    """Turns a potential netid into an email.
+
+    Args:
+        netid (str): The netid.
+
+    Returns:
+        str: The email.
+    """
+
+    if netid.endswith('@princeton.edu'):
+        return netid
+    return netid + '@princeton.edu'
+
+
+def validate_grader(course, grader) -> bool:
+    """Validates a grader for a course.
+
+    Args:
+        course (codepost.models.courses.Courses): The course.
+        grader (str): The grader. Accepts netid or email.
+    """
+
+    grader = make_email(grader)
+    validated = grader in codepost.roster.retrieve(course.id).graders
+    if not validated:
+        logger.error('Invalid grader in {}: "{}"', course_str(course), grader)
+    return validated
 
 
 # ===========================================================================
