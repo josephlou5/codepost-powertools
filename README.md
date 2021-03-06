@@ -26,15 +26,21 @@ The name of this file can be customized in `shared.py`.
 Whenever testing, the dummy course `Joseph's Course` is used instead of an actual codePost course.
 
 ### rubric_to_sheet.py
-Exports a codePost rubric to a Google Sheet. Replaces the entire sheet.
+Exports a codePost rubric to a Google Sheet.
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course to export from.
 - `sheet_name`: The name of the sheet to import the rubrics to.
-- `num_assignments`: The number of assignments to get from the course. Default is ALL.
+- `start_assignment`: The assignment to start getting rubrics for. Default is the first one.
+- `end_assignment`: The assignment to stop getting rubrics for (inclusive).
+  - If `start_assignment` is not given, default is the last one.
+  - If `start_assignment` is given, default is the same as `start_assignment`.
+- `-w`/`--wipe`: Whether to wipe the current sheet. Default is `False`.
+- `-r`/`--replace`: Whether to replace the existing sheets. Default is `False`.
+  - If `False`, adds new sheets for each assignment.
 - `-i`/`--instances`: Whether to count instances of rubric comments. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.   
-  - If running as a test and `num_assignments` is not given, `num_assignments` is set to `1`.
+  - If running as a test and `start_assignment` and `end_assignment` are not given, only get first assignment.
 
 ### sheet_to_rubric.py
 Imports a codePost rubric from a Google Sheet, using the `name` field of rubric comments to account for updates.
@@ -45,10 +51,11 @@ Command-line arguments:
 - `start_sheet`: The index of the first sheet to pull from (0-indexed). Default is `0`.
 - `end_sheet`: The index of the last sheet to pull from (0-indexed). Default is same as `start_sheet`.
 - `-o`/`--override`: Whether to override rubrics of assignments. Default is `False`.
-- `-d`/`--delete`: Whether to delete comments that are not in the sheet. Default is `False`.
+  - If `False`, will ignore every assignment with existing submissions.
 - `-w`/`--wipe`: Whether to completely wipe the existing rubric. Default is `False`.
+- `-d`/`--delete`: Whether to delete comments that are not in the sheet. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
-  - If running as a test and `start_sheet` is not given, `start_sheet` is set to `0`.
+  - If running as a test and `start_sheet` and `end_sheet` are not given, only get first sheet.
 
 ### auto_commenter.py
 Automatically add rubric comments to submissions.

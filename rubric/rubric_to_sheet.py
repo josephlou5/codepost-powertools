@@ -13,13 +13,14 @@ gspread API
 https://gspread.readthedocs.io/en/latest/index.html
 """
 
-# TODO: master tab of all comments
+# TODO: master tab of all comments?
 
 # ===========================================================================
 
 import click
 from loguru import logger
 import codepost
+import codepost.models.assignments  # to get rid of an error message
 import gspread
 import time
 
@@ -34,23 +35,68 @@ WHITE = (255, 255, 255)
 HEADERS = [
     # A  B           C
     '', 'Category', 'Max',
-    # D      E         F                 G              H               I
-    'Name', 'Points', 'Grader Caption', 'Explanation', 'Instructions', 'Template?',
-    # J           K        L    M          N
+    # D      E       F         G                 H              I               J
+    'Name', 'Tier', 'Points', 'Grader Caption', 'Explanation', 'Instructions', 'Template?',
+    # K           L        M    N          O
     'Instances', 'Upvote', '', 'Downvote', ''
 ]
+
+TEMPLATE_YES = 'Yes'
 
 
 # ===========================================================================
 
-def get_assignment_rubric(assignment) -> dict:
+def get_assignments_range(course, start=None, end=None) -> list[codepost.models.assignments.Assignments]:
+    """Gets the assignments to get the rubrics for.
+
+    Args:
+        course (codepost.models.courses.Courses): The course.
+        start (str): The assignment to start getting rubrics for.
+            Default is the first one.
+        end (str): The assignment to stop getting rubrics for.
+            If `start` is not given, default is the last one.
+            If `start` is given, default is the same as `start`.
+
+    Returns:
+        list[codepost.models.assignments.Assignments]: The assignments.
+    """
+
+    assignments = sorted(course.assignments, key=lambda a: a.sortKey)
+    indices = {a.name: i for i, a in enumerate(assignments)}
+
+    if start is None and end is None:
+        return assignments
+
+    first = 0
+    last = 0
+
+    if start is not None:
+        first = indices.get(start, None)
+        if first is None:
+            logger.error('Invalid start assignment "{}"', start)
+            return list()
+    if end is not None:
+        last = indices.get(end, None)
+        if last is None:
+            logger.error('Invalid end assignment "{}"', end)
+            return list()
+
+    if last < first:
+        last = first
+
+    return assignments[first:last + 1]
+
+
+# ===========================================================================
+
+def get_assignment_rubric(assignment) -> dict[int, list]:
     """Gets the rubric comments for an assignment.
 
     Args:
         assignment (codepost.models.assignments.Assignments): The assignment.
 
     Returns:
-        dict: The rubric comments in the format:
+        dict[int, list]: The rubric comments in the format:
             { comment_id: [values] }
     """
 
@@ -84,12 +130,22 @@ def get_assignment_rubric(assignment) -> dict:
             c_id = comment.id
             name = comment.name
             points = -1 * comment.pointDelta
+            tier = ''
             text = comment.text
             explanation = comment.explanation
             instruction = comment.instructionText
-            template = 'Yes' if comment.templateTextOn else ''
+            template = TEMPLATE_YES if comment.templateTextOn else ''
 
-            values = [c_id, c_name, max_points, name, points, text, explanation, instruction, template]
+            # get tier if has it
+            if text[:3] == '\\[T' and text[4:6] == '\\]':
+                try:
+                    tier = int(text[3])
+                    text = text[7:]
+                except ValueError:
+                    # not a valid number; shouldn't happen
+                    pass
+
+            values = [c_id, c_name, max_points, name, tier, points, text, explanation, instruction, template]
 
             data[c_id] = values
 
@@ -98,16 +154,14 @@ def get_assignment_rubric(assignment) -> dict:
     return data
 
 
-def get_all_rubric_comments(course, num_assignments=None) -> dict:
+def get_all_rubric_comments(assignments) -> dict[id, dict[id, list]]:
     """Gets the rubric comments for a course.
 
     Args:
-        course (codepost.models.courses.Courses): The course.
-        num_assignments (int): The number of assignments to get.
-            Default is None. Anything other than a valid number will get all.
+        assignments (list[codepost.models.assignments.Assignments]): The assignments to get.
 
     Returns:
-        dict: The rubric comments in the format:
+        dict[id, dict[id, list]]: The rubric comments in the format:
             { assignment_id: { comment_id: [values] } }
     """
 
@@ -115,17 +169,8 @@ def get_all_rubric_comments(course, num_assignments=None) -> dict:
 
     data = dict()
 
-    assignments = sorted(course.assignments, key=lambda a: a.sortKey)
-
-    for i, assignment in enumerate(assignments):
-
-        if i == num_assignments:
-            break
-
-        # get assignment info
-        a_id = assignment.id
-
-        data[a_id] = get_assignment_rubric(assignment)
+    for assignment in assignments:
+        data[assignment.id] = get_assignment_rubric(assignment)
 
     logger.info('Got all rubric comments from course')
 
@@ -134,27 +179,23 @@ def get_all_rubric_comments(course, num_assignments=None) -> dict:
 
 # ===========================================================================
 
-def count_comment_instances(assignment_id, comment_ids) -> dict:
+def get_assignment_instances(assignment, comment_ids) -> dict[int, list]:
     """Count the instances of each rubric comment in an assignment.
 
     Args:
-        assignment_id (int): The id of the assignment.
-        comment_ids (list): The ids of the rubric comments.
+        assignment (codepost.models.assignments.Assignments): The assignment.
+        comment_ids (list[int]): The ids of the rubric comments.
 
     Returns:
-        dict: The instances of each rubric comment in the format
+        dict[int, list]: The instances of each rubric comment in the format:
             { comment_id: [instances, upvote, upvote %, downvote, downvote %] }
     """
 
-    assignment = codepost.assignment.retrieve(assignment_id)
     a_name = assignment.name
 
     logger.debug('Counting instances for "{}" assignment', a_name)
 
-    counts = dict()
-
-    for c_id in comment_ids:
-        counts[c_id] = [0, 0, 0]
+    counts = {c_id: [0, 0, 0] for c_id in comment_ids}
 
     start = time.time()
 
@@ -194,20 +235,21 @@ def count_comment_instances(assignment_id, comment_ids) -> dict:
                       vals[1], vals[1] / vals[0],
                       vals[2], vals[2] / vals[0]]
 
-    logger.debug('Counted all instances for "{}" assignment (Time: {:.2f} sec)', a_name, end - start)
+    logger.debug('Counted all instances for "{}" assignment ({:.2f} sec)', a_name, end - start)
 
     return data
 
 
-def get_all_instances(ids) -> dict:
+def get_all_instances(assignments, ids) -> dict[int, dict[int, list]]:
     """Get all the instances of all rubric comments for assignments.
 
     Args:
-        ids (dict): The assignment and comment ids in the format:
+        assignments (list[codepost.models.assignments.Assignments]): The assignments.
+        ids (dict[int, list]): The assignment and comment ids in the format:
             { assignment_id: [ comment_ids ] }
 
     Returns:
-        dict: The instances in the format:
+        dict[int, dict[int, list]]: The instances in the format:
             { assignment_id: { comment_id: [instances, upvote, upvote %, downvote, downvote %] } }
     """
 
@@ -215,8 +257,10 @@ def get_all_instances(ids) -> dict:
 
     instances = dict()
 
-    for a_id, c_ids in ids.items():
-        instances[a_id] = count_comment_instances(a_id, c_ids)
+    for assignment in assignments:
+        a_id = assignment.id
+        c_ids = ids[a_id]
+        instances[a_id] = get_assignment_instances(assignment, c_ids)
 
     logger.info('Got all instances of all rubric comments')
 
@@ -225,16 +269,84 @@ def get_all_instances(ids) -> dict:
 
 # ===========================================================================
 
-def display_assignment_comments(worksheet, values):
+def get_worksheets(sheet, assignments, wipe=False, replace=False) -> dict[int, Worksheet]:
+    """Gets the worksheets to display data on.
+
+    Args:
+        sheet (gspread.models.Spreadsheet): The sheet.
+        assignments (list[codepost.models.assignments.Assignments]): The assignments.
+        wipe (bool): Whether to wipe the existing sheet.
+            Default is False.
+        replace (bool): Whether to replace the existing sheets.
+            Default is False.
+
+    Returns:
+        dict[int, Worksheet]: The Worksheet objects in the format:
+            { assignment_id: worksheet }
+    """
+
+    worksheets = dict()
+
+    existing = sheet.worksheets()
+    temp = add_temp_worksheet(sheet)
+
+    # delete all current sheets
+    if wipe:
+        logger.debug('Deleting existing worksheets')
+        num_existing = len(existing)
+        for _ in range(num_existing):
+            sheet.del_worksheet(existing.pop())
+        logger.debug('Deleted all worksheets')
+
+    logger.info('Finding worksheets for each assignment')
+    for assignment in assignments:
+        a_id = assignment.id
+        a_name = assignment.name
+
+        this_worksheet = None
+
+        if replace:
+            # look for matching worksheet according to ids
+            for index, w in enumerate(existing):
+                worksheet = Worksheet(w)
+                if str(a_id) == worksheet.get_cell('A1').value:
+                    # TODO: keep existing columns rather than deleting and adding new worksheet
+                    # delete old worksheet
+                    title = w.title
+                    sheet.del_worksheet(w)
+                    # add new worksheet in same place
+                    new_w = add_temp_worksheet(sheet, title=title, index=index)
+                    existing[index] = new_w
+                    this_worksheet = Worksheet(new_w)
+                    break
+
+        if this_worksheet is None:
+            # create new worksheet
+            this_worksheet = Worksheet(add_temp_worksheet(sheet, title=a_name))
+
+        worksheets[a_id] = this_worksheet
+
+    sheet.del_worksheet(temp)
+
+    return worksheets
+
+
+# ===========================================================================
+
+def display_assignment_comments(a_name, worksheet, values):
     """Displays rubric comments for an assignment on a worksheet.
 
     Args:
+        a_name (str): The assignment name.
         worksheet (Worksheet): The worksheet.
         values (list): The rubric comments.
     """
 
+    logger.debug('Displaying rubric comments for "{}" assignment', a_name)
+
     rows = len(values)
 
+    # worksheet should only have A1, so this will format the entire sheet
     worksheet.format_cell('A1', font_family='Fira Code', update=True)
 
     # if no values, add dummy row to avoid freezing all 2 rows error
@@ -259,134 +371,134 @@ def display_assignment_comments(worksheet, values):
 
     worksheet.freeze_rows(2)
 
+    # header format
     worksheet.format_cell('B1:2', bold=True, background_color=GREEN, text_color=WHITE)
     worksheet.format_cell('B2:2', text_align='CENTER')
+
+    # ids column format
+    worksheet.format_cell('A', vertical_align='MIDDLE')
+
+    # all other rows format
     worksheet.format_cell(f'B3:{rows}', vertical_align='MIDDLE', wrap='WRAP')
 
+    # worksheet.set_col_width('B', 100)  # category name
     worksheet.set_col_width('C', 50)  # max category points
     worksheet.set_col_width('D', 150)  # name
-    worksheet.set_col_width('E', 75)  # points
-    worksheet.set_col_width('F', 200)  # grader caption
-    worksheet.set_col_width('G', 650)  # explanation
-    worksheet.set_col_width('H', 300)  # instructions
-    worksheet.set_col_width('J:N', 75)  # instances columns
+    worksheet.set_col_width('E', 50)  # tier
+    worksheet.set_col_width('F', 75)  # points
+    worksheet.set_col_width('G', 200)  # grader caption
+    worksheet.set_col_width('H', 650)  # explanation
+    worksheet.set_col_width('I', 300)  # instructions
+    # worksheet.set_col_width('J', 100)  # is template
+    worksheet.set_col_width('K:O', 75)  # instances columns
 
-    worksheet.merge_cells('K2:L2')
-    worksheet.merge_cells('M2:N2')
+    # merge upvote and downvote header
+    worksheet.merge_cells('L2:M2')
+    worksheet.merge_cells('N2:O2')
 
     # hide id and explanation columns
     worksheet.hide_col('A')
-    worksheet.hide_col('G')
+    worksheet.hide_col('H')
 
     # update worksheet
     worksheet.update()
 
+    logger.debug('Displayed all rubric comments for "{}" assignment', a_name)
 
-def display_all_rubric_comments(sheet, comments):
+
+def display_all_rubric_comments(assignments, worksheets, comments):
     """Displays rubric comments on a sheet.
 
     Args:
-        sheet (gspread.models.Spreadsheet): The sheet.
-        comments (dict): The rubric comments in the format:
+        assignments (list[codepost.models.assignments.Assignments]): The assignments.
+        worksheets (dict[int, Worksheet]): The Worksheet objects in the format:
+            { assignment_id: worksheet }
+        comments (dict[int, dict[int, list]]): The rubric comments in the format:
             { assignment_id: { comment_id: [values] } }
     """
 
     logger.debug('Displaying rubric comments on sheet')
 
-    # delete all current sheets
-    logger.debug('Deleting existing worksheets')
-    worksheets = sheet.worksheets()
-    temp = add_temp_worksheet(sheet)
-    for w in worksheets:
-        sheet.del_worksheet(w)
-    logger.debug('Deleted all worksheets')
-
     # display all assignments
-    for a_id, a_data in comments.items():
-
-        assignment = codepost.assignment.retrieve(a_id)
+    for assignment in assignments:
+        a_id = assignment.id
         a_name = assignment.name
 
-        # create new worksheet
-        worksheet = Worksheet(sheet.add_worksheet(title=a_name, rows=1, cols=1))
+        worksheet = worksheets[a_id]
+        a_data = comments[a_id]
 
-        # delete the temp worksheet
-        if temp is not None:
-            sheet.del_worksheet(temp)
-            temp = None
-
-        logger.debug('Displaying rubric comments for "{}" assignment', a_name)
-        display_assignment_comments(worksheet, list(a_data.values()))
-        logger.debug('Displayed all rubric comments for "{}" assignment', a_name)
+        display_assignment_comments(a_name, worksheet, list(a_data.values()))
 
     logger.debug('Displayed all rubric comments on sheet')
 
 
 # ===========================================================================
 
-def display_assignment_instances(worksheet, values):
+def display_assignment_instances(a_name, worksheet, values):
     """Displays instance counts for an assignment on a worksheet.
 
     Args:
+        a_name (str): The assignment name.
         worksheet (Worksheet): The worksheet.
         values (list): The instance counts.
     """
 
-    # add values
-    worksheet.set_values('J3', values)
+    logger.debug('Displaying instance counts for "{}" assignment', a_name)
 
-    # format feedback columns
-    worksheet.format_number_cell('L', 'PERCENT', '0.0%')
-    worksheet.format_number_cell('N', 'PERCENT', '0.0%')
+    # add values
+    worksheet.set_values('K3', values)
+
+    # format feedback percent columns
+    worksheet.format_number_cell('M', 'PERCENT', '0.0%')
+    worksheet.format_number_cell('O', 'PERCENT', '0.0%')
 
     # update worksheet
     worksheet.update()
 
+    logger.debug('Displayed all instance counts for "{}" assignment', a_name)
 
-def display_all_instances(sheet, instances):
+
+def display_all_instances(assignments, worksheets, instances):
     """Displays instance counts on a Google Sheet.
 
     Args:
-        sheet (gspread.models.Spreadsheet): The sheet.
-        instances (dict): The instance counts in the format:
+        assignments (list[codepost.models.assignments.Assignments]): The assignments.
+        worksheets (dict[int, Worksheet]): The Worksheet objects in the format:
+            { assignment_id: worksheet }
+        instances (dict[int, dict[int, list]]): The instance counts in the format:
             { assignment_id: { comment_id: [values] } }
     """
 
     logger.info('Displaying instance counts on sheet')
 
-    for index, (a_id, a_data) in enumerate(instances.items()):
+    for assignment in assignments:
+        a_id = assignment.id
+        a_name = assignment.name
 
-        g_worksheet = sheet.get_worksheet(index)
-        if g_worksheet is None:
-            logger.warning('Not enough sheets exist to display instances for the given input')
-            return
-        worksheet = Worksheet(g_worksheet)
+        worksheet = worksheets[a_id]
+        a_data = instances[a_id]
 
-        if worksheet.get_cell('A1').value != str(a_id):
-            logger.warning('Assignments in sheet not in same order as the given input')
-            return
-
-        a_name = codepost.assignment.retrieve(a_id).name
-        logger.debug('Displaying instance counts for "{}" assignment', a_name)
-        display_assignment_instances(worksheet, list(a_data.values()))
-        logger.debug('Displayed all instance counts for "{}" assignment', a_name)
+        display_assignment_instances(a_name, worksheet, list(a_data.values()))
 
     logger.info('Displayed all instance counts on sheet')
 
 
 # ===========================================================================
 
-# TODO update arguments
-
 @click.command()
 @click.argument('course_period', type=str, required=True)
 @click.argument('sheet_name', type=str, required=True)
-@click.argument('num_assignments', type=int, required=False)
-@click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
-              help='Whether to run as a test. Default is False.')
+@click.argument('start_assignment', type=str, required=False)
+@click.argument('end_assignment', type=str, required=False)
+@click.option('-w', '--wipe', is_flag=True, default=False, flag_value=True,
+              help='Whether to wipe the current sheet. Default is False.')
+@click.option('-r', '--replace', is_flag=True, default=False, flag_value=True,
+              help='Whether to replace the existing sheets. Default is False.')
 @click.option('-i', '--instances', is_flag=True, default=False, flag_value=True,
               help='Whether to count instances of rubric comments. Default is False.')
-def main(course_period, sheet_name, num_assignments, testing, instances):
+@click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
+              help='Whether to run as a test. Default is False.')
+def main(course_period, sheet_name, start_assignment, end_assignment, wipe, replace, instances, testing):
     """
     Exports a codePost rubric to a Google Sheet.
 
@@ -394,11 +506,18 @@ def main(course_period, sheet_name, num_assignments, testing, instances):
     Args:
         course_period (str): The period of the COS126 course to export from.
         sheet_name (str): The name of the sheet to import the rubrics to.
-        num_assignments (int): The number of assignments to get from the course.
-            Default is ALL. \f
-        testing (bool): Whether to run as a test.
+        start_assignment (str): The assignment to start getting rubrics for.
+            Default is the first one.
+        end_assignment (str): The assignment to stop getting rubrics for (inclusive).
+            If `start_assignment` is not given, default is the last one.
+            If `start_assignment` is given, default is the same as `start_assignment`. \f
+        wipe (bool): Whether to wipe the current sheet.
+            Default is False.
+        replace (bool): Whether to replace the existing sheets.
             Default is False.
         instances (bool): Whether to count instances of rubric comments.
+            Default is False.
+        testing (bool): Whether to run as a test.
             Default is False.
     """
 
@@ -426,22 +545,43 @@ def main(course_period, sheet_name, num_assignments, testing, instances):
     if sheet is None:
         return
 
-    if testing and num_assignments is None:
-        num_assignments = 1
-    comments = get_all_rubric_comments(course, num_assignments)
+    logger.info('Getting assignments range')
+    if testing and start_assignment is None and end_assignment is None:
+        assignments = [min(course.assignments, key=lambda a: a.sortKey)]
+    else:
+        assignments = get_assignments_range(course, start_assignment, end_assignment)
+    if len(assignments) == 0:
+        logger.error('No assignments to parse through')
+        return
 
-    display_all_rubric_comments(sheet, comments)
+    comments = get_all_rubric_comments(assignments)
+
+    worksheets = get_worksheets(sheet, assignments, wipe, replace)
+
+    display_all_rubric_comments(assignments, worksheets, comments)
 
     if instances:
 
-        ids = dict()
-        for a_id, values in comments.items():
+        # count and display for each assignment (avoids runtime errors)
+        for assignment in assignments:
+            a_id = assignment.id
+            a_name = assignment.name
+            c_ids = list(comments[a_id].keys())[2:]
+            worksheet = worksheets[a_id]
+
             # need to skip the first 2 rows to get only comment ids
-            ids[a_id] = list(values.keys())[2:]
+            instances = get_assignment_instances(assignment, c_ids)
 
-        instances = get_all_instances(ids)
+            display_assignment_instances(a_name, worksheet, list(instances.values()))
 
-        display_all_instances(sheet, instances)
+        # ids = dict()
+        # for a_id, values in comments.items():
+        #     # need to skip the first 2 rows to get only comment ids
+        #     ids[a_id] = list(values.keys())[2:]
+        #
+        # instances = get_all_instances(assignments, ids)
+        #
+        # display_all_instances(assignments, worksheets, instances)
 
     logger.info('Done')
 

@@ -47,6 +47,7 @@ SHEET_HEADERS = {
     'is template': 'Template?',
 }
 
+# note: rubric_to_sheet.py and track_comments.py rely on knowing this format
 TIER_FMT = '\\[T{tier}\\] {text}'
 
 TEMPLATE_YES = ('x', 'yes', 'y')
@@ -294,7 +295,8 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
     del existing_names, sheet_names
 
     if len(missing_comments) > 0:
-        logger.debug('Comments not in the sheet: ({})', ','.join(c.name for c in missing_comments))
+        logger.debug('Found {} comments not in the sheet: {}',
+                     len(missing_comments), ','.join(c.name for c in missing_comments))
 
         # delete rubric comments not in the sheet
         if delete_missing:
@@ -419,9 +421,13 @@ def create_all_rubrics(rubrics, override_rubric=False, delete_missing=False, wip
               help='Whether to completely wipe the existing rubric. Default is False.')
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
-def main(course_period, sheet_name, start_sheet, end_sheet, override, delete, wipe, testing):
+def main(course_period, sheet_name, start_sheet, end_sheet, override, wipe, delete, testing):
     """
     Imports a codePost rubric from a Google Sheet.
+
+    \b
+    Expected time:
+        No changes: < 30 seconds.
 
     \b
     Args:
@@ -433,9 +439,9 @@ def main(course_period, sheet_name, start_sheet, end_sheet, override, delete, wi
             Default is same as `start_sheet`. \f
         override (bool): Whether to override rubrics of assignments.
             Default is False.
-        delete (bool): Whether to delete comments that are not in the sheet.
-            Default is False.
         wipe (bool): Whether to completely wipe the existing rubric.
+            Default is False.
+        delete (bool): Whether to delete comments that are not in the sheet.
             Default is False.
         testing (bool): Whether to run as a test.
             Default is False.
