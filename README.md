@@ -75,6 +75,11 @@ Command-line arguments:
 ### grading_queue.py
 Grading queue related operations.
 
+Run commands with:
+```
+> python grading_queue.py COMMAND [OPTIONS] ARGS
+```
+
 #### claim
 Claims submissions to a grader.
 Saves all claimed submissions to a file.
