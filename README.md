@@ -10,7 +10,7 @@ and the [`gspread` package](https://gspread.readthedocs.io/en/latest/).
 - `loguru`: For logging status messages
 - `time`: For timing
 - `os`: For working with local files and directories
-- `random`: For randomness in `claim.py`
+- `random`: For randomness in `grading_queue.py`
 - `datetime`: For the current date in the report file in `track_comments.py`
 - `comma`: For working with `.csv` files
 
@@ -72,15 +72,68 @@ Command-line arguments:
 - `-sa`/`--search-all`: Whether to search all submissions, not just those with no grader. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
-### claim.py
-Claims all remaining submissions to a dummy grader account,
-or unclaims all submissions assigned to the dummy grader account.
-If claiming, dumps all the graders for the submissions into a `.json` file.
+### grading_queue.py
+Grading queue related operations.
+
+#### claim
+Claims submissions to a grader.
+Saves all claimed submissions to a file.
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
-- `claiming`: Whether to claim or unclaim submissions.
+- `-g`/`--grader`: The grader to claim to. Accepts netid or email. Default is `DUMMY_GRADER`.
+- `-f`/`--from`: The grader to claim from. Accepts netid or email. Default is `None` (unclaimed submissions).
+- `-n`/`--num`: The number of submissions to claim. Must be positive. Overrides `percentage` if both given. Default is ALL.
+- `-p`/`--percentage`: The percentage of submissions to claim, as an `int` (e.g. 60% is 60). Default is 100%.
+- `-r`/`--random`: Whether to claim random submissions. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+#### unclaim
+Unclaims submissions from a grader.
+Saves all unclaimed submissions to a file.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
+- `-g`/`--grader`: The grader to unclaim from. Accepts netid or email. Default is `DUMMY_GRADER`.
+- `-n`/`--num`: The number of submissions to unclaim. Must be positive. Overrides `percentage` if both given. Default is ALL.
+- `-p`/`--percentage`: The percentage of submissions to unclaim, as an `int` (e.g. 60% is 60). Default is 100%.
+- `-r`/`--random`: Whether to unclaim random submissions. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+#### stats
+Lists current stats of grading queue.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+#### finalized
+Finds finalized submissions.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
+- `-s`/`--save`: Whether to save the submissions to a file. Default is `False`.
+- `-o`/`--open`: Whether to open the finalized submissions. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+#### audit
+Deals with auditing submissions.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The name of the assignment.
+- `-r`/`--report`: Whether to generate a report of the auditing. Default is `False`.
+  - If `True`, will not do anything else.
+- `-ff`/`--from-file`: Whether to read the submissions from a file. Default is `False`.
+- `-f`/`--only-finalized`: Whether to only search finalized submissions. Default is `False`.
+- `-n`/`--num-times`: How many times each submission should be audited. Must be positive. Default is `2`.
+- `-l`/`--list-submission`: Whether to list the submissions. Default is `False`.
+- `-s`/`--save`: Whether to save the submissions to a file. Default is `False`.
+- `-o`/`--open`: Whether to open the submissions. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
 ### find_no_comments.py
