@@ -110,8 +110,8 @@ def get_assignment_rubric(assignment) -> dict[int, list]:
     data['row1'] = [a_id, f'Assignment: {a_name}']
     data['row2'] = HEADERS
 
-    # loop through all categories for this assignment
-    for category in assignment.rubricCategories:
+    # loop through all categories for this assignment (sorted by sortKey)
+    for category in sorted(assignment.rubricCategories, key=lambda rc: rc.sortKey):
 
         # get category info
         c_name = category.name
@@ -354,7 +354,7 @@ def display_assignment_comments(a_name, worksheet, values):
         values.append([''])
 
     # add values
-    logger.debug('Setting values of the sheet')
+    # logger.debug('Setting values of the sheet')
     try:
         worksheet.set_values(values)
     except gspread.exceptions.APIError:
@@ -367,7 +367,7 @@ def display_assignment_comments(a_name, worksheet, values):
         worksheet.set_values(f'A{half + 1}', vals2)
 
     # formatting
-    logger.debug('Formatting the sheet')
+    # logger.debug('Formatting the sheet')
 
     worksheet.freeze_rows(2)
 
@@ -391,6 +391,10 @@ def display_assignment_comments(a_name, worksheet, values):
     worksheet.set_col_width('I', 300)  # instructions
     # worksheet.set_col_width('J', 100)  # is template
     worksheet.set_col_width('K:O', 75)  # instances columns
+
+    # TODO: conditional formatting for instances?
+    #  https://developers.google.com/sheets/api/samples/conditional-formatting
+    #  would need to update Worksheet (or at least add custom requests method)
 
     # merge upvote and downvote header
     worksheet.merge_cells('L2:M2')
@@ -417,7 +421,7 @@ def display_all_rubric_comments(assignments, worksheets, comments):
             { assignment_id: { comment_id: [values] } }
     """
 
-    logger.debug('Displaying rubric comments on sheet')
+    logger.info('Displaying rubric comments on sheet')
 
     # display all assignments
     for assignment in assignments:
@@ -429,7 +433,7 @@ def display_all_rubric_comments(assignments, worksheets, comments):
 
         display_assignment_comments(a_name, worksheet, list(a_data.values()))
 
-    logger.debug('Displayed all rubric comments on sheet')
+    logger.info('Displayed all rubric comments on sheet')
 
 
 # ===========================================================================
@@ -563,6 +567,7 @@ def main(course_period, sheet_name, start_assignment, end_assignment, wipe, repl
     if instances:
 
         # count and display for each assignment (avoids runtime errors)
+        logger.info('Getting instances of all rubric comments')
         for assignment in assignments:
             a_id = assignment.id
             a_name = assignment.name
@@ -573,7 +578,9 @@ def main(course_period, sheet_name, start_assignment, end_assignment, wipe, repl
             instances = get_assignment_instances(assignment, c_ids)
 
             display_assignment_instances(a_name, worksheet, list(instances.values()))
+        logger.info('Got all instances of all rubric comments')
 
+        # count all instances, then display all instances
         # ids = dict()
         # for a_id, values in comments.items():
         #     # need to skip the first 2 rows to get only comment ids
@@ -587,7 +594,7 @@ def main(course_period, sheet_name, start_assignment, end_assignment, wipe, repl
 
     end = time.time()
 
-    logger.info('Total time: {:.2f} sec', end - start)
+    logger.info('Total time: {}', format_time(end - start))
 
 
 # ===========================================================================
