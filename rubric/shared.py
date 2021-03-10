@@ -126,16 +126,17 @@ def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
 
 # ===========================================================================
 
-def course_str(course) -> str:
+def course_str(course, delim=' ') -> str:
     """Returns a str representation of a course.
 
     Args:
         course (codepost.models.courses.Courses): The course.
+        delim (str): The deliminating str between the name and the period.
 
     Returns:
         str: The str representation.
     """
-    return f'{course.name} {course.period}'
+    return f'{course.name}{delim}{course.period}'
 
 
 # ===========================================================================

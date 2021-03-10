@@ -21,6 +21,7 @@ import click
 from loguru import logger
 import codepost
 import time
+import comma
 
 from shared import *
 
@@ -28,7 +29,7 @@ from shared import *
 
 COMMENT_AUTHOR = 'jdlou+autocommenter@princeton.edu'
 
-COMMENTS_FILE = 'added_auto_comments.txt'
+COMMENTS_FILE = 'added_auto_comments_{}_{}.csv'
 
 # ===========================================================================
 
@@ -69,6 +70,10 @@ class Comment:
         file_name (str): The name of the file where the comment should be applied.
         line_num (int): The start line number of the comment.
 
+    Static Methods:
+        from_csv(comment_dict)
+            Converts a file dict into a comment creation kwargs dict.
+
     Methods:
         add_instance(line_num)
             Adds an instance of this rubric comment.
@@ -77,7 +82,7 @@ class Comment:
             Returns the kwargs dict for creating this comment.
 
         for_file()
-            Returns a representation of this comment for a file.
+            Returns a csv representation of this comment for a file.
     """
 
     def __init__(self, s_id, comment_id, file_id, file_name, text='',
@@ -180,16 +185,36 @@ class Comment:
 
     # ==================================================
 
-    def add_instance(self, line_num):
-        """Adds an instance of this rubric comment.
+    @staticmethod
+    def from_csv(comment_dict) -> dict:
+        """Converts a file dict into a comment creation kwargs dict.
 
         Args:
-            line_num (int): The line number of the repeat rubric comment (0-indexed).
-        """
-        self._extra_instances.append(line_num + 1)
+            comment_dict (dict[str, str]): The comment in its csv format.
 
-    def as_dict(self) -> dict:
-        """Returns the kwargs dict for creating this comment."""
+        Raises:
+            KeyError: If `comment_dict` doesn't contain the proper keys.
+            ValueError: If appropriate values of `comment_dict` cannot be converted to `int`.
+
+        Returns:
+            dict: The comment in kwargs format for creating.
+        """
+        return {
+            'text': comment_dict['text'],
+            'startChar': int(comment_dict['start_char']),
+            'endChar': int(comment_dict['end_char']),
+            'startLine': int(comment_dict['start_line']),
+            'endLine': int(comment_dict['end_line']),
+            'file': int(comment_dict['file_id']),
+            'rubricComment': int(comment_dict['comment_id']),
+            'author': COMMENT_AUTHOR,
+        }
+
+    # ==================================================
+
+    def _create_text(self) -> str:
+        """Create the text of the comment."""
+
         text = self._text
         num_extra = len(self._extra_instances)
         if num_extra > 0:
@@ -205,21 +230,36 @@ class Comment:
                 for line in self._extra_instances[:-1]:
                     text += str(line) + ', '
                 text += f'and {self._extra_instances[-1]}.'
+        return text
 
+    # ==================================================
+
+    def add_instance(self, line_num):
+        """Adds an instance of this rubric comment.
+
+        Args:
+            line_num (int): The line number of the repeat rubric comment (0-indexed).
+        """
+        self._extra_instances.append(line_num + 1)
+
+    def as_dict(self) -> dict:
+        """Returns the kwargs dict for creating this comment."""
+        return self.from_csv(self.for_file())
+
+    def for_file(self) -> dict:
+        """Returns a csv representation of this comment for a file."""
         return {
-            'text': text,
-            'startChar': self._start_char,
-            'endChar': self._end_char,
-            'startLine': self._start_line,
-            'endLine': self._end_line,
-            'file': self._file_id,
-            'rubricComment': self._rubric_comment,
-            'author': COMMENT_AUTHOR,
+            'submission_id': self._s_id,
+            'file_name': self._file_name,
+            'file_id': self._file_id,
+            'comment': self._comment_name,
+            'comment_id': self._rubric_comment,
+            'start_line': self._start_line,
+            'end_line': self._end_line,
+            'start_char': self._start_char,
+            'end_char': self._end_char,
+            'text': self._create_text(),
         }
-
-    def for_file(self) -> str:
-        """Returns a representation of this comment for a file."""
-        return ','.join((str(self._s_id), self._file_name, self._comment_name))
 
 
 # ===========================================================================
@@ -556,21 +596,61 @@ def create_comments(assignment) -> list[SubmissionComments]:
 
 # ===========================================================================
 
+def read_comments_file(filename) -> list[dict]:
+    """Read comments from a file and return the kwargs dict to create them.
+
+    Args:
+        filename (str): The name of the file.
+
+    Returns:
+        list[dict]: The comments to apply in kwargs format.
+    """
+
+    logger.info('Reading comments from file')
+
+    data = comma.load(filename, force_header=True)
+    if data is None:
+        logger.info('File "{}" not found', filename)
+        return list()
+    if len(data) == 0:
+        logger.info('No comments found in file "{}"', filename)
+        return list()
+
+    applying = list()
+    for row in data:
+        applying.append(Comment.from_csv(row))
+
+    return applying
+
+
+# ===========================================================================
+
 @click.command()
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
+@click.option('-f', '--from-file', is_flag=True, default=False, flag_value=True,
+              help='Whether to read the comments from a file. Default is False.')
+@click.option('-a', '--apply', is_flag=True, default=False, flag_value=True,
+              help='Whether to apply the comments. Default is False.')
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
-def main(course_period, assignment_name, testing):
+def main(course_period, assignment_name, from_file, apply, testing):
     """Automatically add rubric comments to submissions.
 
     \b
     Args:
         course_period (str): The period of the COS126 course.
         assignment_name (str): The name of the assignment. \f
+        from_file (bool): Whether to read the comments form a file.
+            Default is False.
+        apply (bool): Whether to apply the comments.
+            Default is False.
         testing (bool): Whether to run as a test.
             Default is False.
     """
+
+    if from_file and not apply:
+        logger.warning('Reading from file but not applying')
 
     start = time.time()
 
@@ -596,27 +676,42 @@ def main(course_period, assignment_name, testing):
     if assignment is None:
         return
 
-    get_rubric_comment_ids(assignment)
-
-    get_missing_comment_ids(assignment)
-
-    all_submission_comments = create_comments(assignment)
+    filename = COMMENTS_FILE.format(course_str(course, delim='_'), assignment_name)
 
     applying = list()
-    for_file = list()
-    for submission_comments in all_submission_comments:
-        applying += submission_comments.applying()
-        for_file += submission_comments.for_file
 
-    logger.info('Saving rubric comments to "{}" file', COMMENTS_FILE)
-    with open(COMMENTS_FILE, 'w') as f:
-        f.write(f'{course.name} {course.period}\n')
-        f.write(assignment_name + '\n')
-        f.write('\n'.join(for_file) + '\n')
+    # reading comments from file
+    if from_file:
+        applying = read_comments_file(filename)
 
-    logger.info('Applying {} rubric comments', len(applying))
-    for comment in applying:
-        codepost.comment.create(**comment)
+    if len(applying) == 0:
+
+        get_rubric_comment_ids(assignment)
+
+        get_missing_comment_ids(assignment)
+
+        all_submission_comments = create_comments(assignment)
+
+        if len(all_submission_comments) == 0:
+            logger.info('No comments to apply')
+
+        else:
+            applying = list()
+            for_file = list()
+            for submission_comments in all_submission_comments:
+                applying += submission_comments.applying()
+                for_file += submission_comments.for_file
+
+            logger.info('Saving rubric comments to "{}" file', filename)
+            comma.dump(for_file, filename)
+
+    if from_file and not apply:
+        logger.info('Found {} comments to apply', len(applying))
+
+    elif apply and len(applying) > 0:
+        logger.info('Applying {} rubric comments', len(applying))
+        for comment in applying:
+            codepost.comment.create(**comment)
 
     logger.info('Done')
 
