@@ -17,29 +17,57 @@ import datetime
 import click
 from loguru import logger
 import codepost
+import codepost.errors
 import time
 
 from shared import *
 
 # ===========================================================================
 
+TESTING = False
+if TESTING:
+    with open('report_whitelist.txt', 'r') as whitelist_file:
+        # remove blank lines
+        whitelist = set(whitelist_file.read().split('\n')) - {''}
+
+# ===========================================================================
+
 # report file template
 """
+-------------------------
 REPORT.txt
+
 Last updated 2021/02/23
+Report ID: XXX
 
+-------------------------
 SUMMARY
-Hello: submitted, graded, viewed
-Loops: submitted, graded, not viewed
-NBody: submitted, not graded, not viewed
 
-COMMENTS
-Hello
-    comment1
-    comment2
-Loops
-    comment1
-    comment3
+0-Hello: submitted, graded, viewed
+1-Loops: submitted, graded, not viewed
+2-NBody: submitted, not graded, not viewed
+
+-------------------------
+BY ASSIGNMENT
+
+0-Hello
+    (+1) T2 comment1
+    (-1) T1 comment2
+
+1-Loops
+    (  ) T1 comment1 *
+    (+1)    comment3
+
+-------------------------
+BY COMMENT
+
+comment1
+    (+1) 0-Hello
+    (  ) 1-Loops
+comment2
+    0-Hello
+comment3
+    1-Loops
 """
 
 REPORTS_FOLDER = 'reports'
@@ -65,37 +93,64 @@ def summary(assignment_name, submitted=False, graded=False, viewed=False) -> str
     Returns:
         str: The summary string.
     """
-
     return (assignment_name + ': '
             + ('submitted' if submitted else 'not submitted') + ', '
             + ('graded' if graded else 'not graded') + ', '
             + ('viewed' if viewed else 'not viewed'))
 
 
-def remove_duplicates(lst) -> list:
-    """Remove duplicates from a list of strings while preserving order.
+def format_indent(feedback, tier, name) -> str:
+    """Create indent line.
 
     Args:
-        lst (list): The list with possible duplicates.
+        feedback (int): The feedback for the comment.
+        tier (int): The tier of the comment.
+        name (str): The comment or assignment name.
 
     Returns:
-        list: The elements in the same order with duplicates removed.
+        str: A str representation of this information.
     """
+    return ('(' + (f'{feedback:+2d}' if feedback != 0 else ' ' * 2) + ') ' +
+            (f'T{tier}' if tier != 0 else ' ' * 2) + ' ' +
+            name)
 
+
+def remove_duplicates(lst) -> list[str]:
+    """Removes duplicates from a list while preserving order.
+
+    Args:
+        lst (list[str]): The list of elements.
+
+    Returns:
+        list[str]: The list without duplicates.
+    """
     return list(dict.fromkeys(lst).keys())
+
+
+def count_before(assignments, a_name) -> int:
+    """Count number of assignments before.
+
+    Args:
+        assignments (list[tuple[int, int, str]]): The assignments info.
+        a_name (str): The assignment to count before.
+
+    Returns:
+        int: The number of assignments before.
+    """
+    return remove_duplicates([a[2] for a in assignments]).index(a_name)
 
 
 # ===========================================================================
 
 
-def get_rubric_comments(assignment) -> dict:
+def get_rubric_comments(assignment) -> dict[int, tuple[int, str]]:
     """Gets all the rubric comments for an assignment.
 
     Args:
         assignment (codepost.models.assignments.Assignments): The assignment.
 
     Returns:
-        dict: The comments in the format:
+        dict[int, tuple[int, str]]: The comments in the format:
                 { comment_id: (tier, name) }
             Tier 0 means the comment does not belong to a tier.
     """
@@ -123,7 +178,7 @@ def get_rubric_comments(assignment) -> dict:
 
 # ===========================================================================
 
-def get_student_assignment_comments(a_name, assignment) -> dict:
+def get_student_assignment_comments(a_name, assignment) -> dict[str, tuple[str, list[tuple]]]:
     """Gets student rubric comment usage on an assignment.
 
     Args:
@@ -131,55 +186,65 @@ def get_student_assignment_comments(a_name, assignment) -> dict:
         assignment (codepost.models.assignments.Assignments): The assignment.
 
     Returns:
-        dict: The data in the format:
-            { student: (assignment_summary, [comments]) }
+        dict[str, tuple[str, list[tuple]]]: The data in the format:
+            { student: (assignment_summary, [ (feedback, tier, comment_name) ]) }
     """
 
     logger.debug('Getting rubric comment usage for "{}" assignment', assignment.name)
 
-    data = dict()
-
     submissions = assignment.list_submissions()
     if len(submissions) == 0:
-        return data
+        return dict()
 
     comments = get_rubric_comments(assignment)
 
+    data = dict()
+
     for submission in submissions:
 
-        assignment_summary = summary(
-            a_name,
-            submitted=True,
-            graded=submission.isFinalized and assignment.isReleased,
-            viewed=submission.list_view_history()['hasViewed']
-        )
+        # this loop is very susceptible to codepost API runtime errors, so wrap in try
+        while True:
 
-        submission_comments = list()
-        for f in submission.files:
-            for c in f.comments:
-                if c.rubricComment is None: continue
+            try:
 
-                comment = comments[c.rubricComment]
+                # TESTING
+                if TESTING:
+                    these_students = set(submission.students)
+                    inter = whitelist & these_students
+                    if len(inter) == 0:
+                        continue
 
-                comment_str = ''
-                if comment[0] == 0:
-                    # no tier; add blank
-                    comment_str += ' ' * 3
-                else:
-                    comment_str += f'T{comment[0]} '
-                comment_str += comment[1]
+                assignment_summary = summary(
+                    a_name,
+                    submitted=True,
+                    graded=submission.isFinalized and assignment.isReleased,
+                    viewed=submission.list_view_history()['hasViewed']
+                )
 
-                submission_comments.append(comment_str)
+                submission_comments = list()
+                for f in submission.files:
+                    for c in f.comments:
+                        if c.rubricComment is None: continue
+                        tier, name = comments[c.rubricComment]
+                        feedback = c.feedback
+                        comment = (feedback, tier, name)
+                        submission_comments.append(comment)
 
-        for student in submission.students:
-            # each student should only appear once in each assignment,
-            # so this shouldn't be overriding any students
-            data[student] = (assignment_summary, submission_comments)
+                for student in submission.students:
+                    # each student should only appear once in each assignment,
+                    # so this shouldn't be overriding any students
+                    data[student] = (assignment_summary, submission_comments)
+
+            except codepost.errors.APIError:
+                logger.warning('Got codePost API Runtime Error')
+                continue
+
+            break
 
     return data
 
 
-def get_student_comments(course, stop_assignment_name) -> dict:
+def get_student_comments(course, stop_assignment_name) -> dict[str, tuple[list, dict, dict]]:
     """Gets student rubric comment usage on all assignments.
 
     Args:
@@ -187,8 +252,8 @@ def get_student_comments(course, stop_assignment_name) -> dict:
         stop_assignment_name (str): The name of the assignment to stop at (does not parse this assignment).
 
     Returns:
-        dict: The data in the format:
-            { student: ( [summaries], { comment: [assignments] }, { assignment_name: [comments] } ) }
+        dict[str, tuple[list, dict, dict]]: The data in the format:
+            { student: ( [summaries], { assignment_name: [comments] }, { comment: [assignments] } ) }
     """
 
     logger.info('Getting student rubric comment usage')
@@ -198,6 +263,9 @@ def get_student_comments(course, stop_assignment_name) -> dict:
     # get all students in this course
     all_students = set()
     for student in codepost.roster.retrieve(course.id).students:
+        # TESTING
+        if TESTING:
+            if student not in whitelist: continue
         data[student] = (list(), dict(), dict())
         all_students.add(student)
 
@@ -208,7 +276,7 @@ def get_student_comments(course, stop_assignment_name) -> dict:
         if a_name == stop_assignment_name:
             break
 
-        a_name = f'{i} {a_name}'
+        a_name = f'{i}-{a_name}'
 
         # get data for this assignment
         this_assignment = get_student_assignment_comments(a_name, assignment)
@@ -219,23 +287,28 @@ def get_student_comments(course, stop_assignment_name) -> dict:
 
         for student, (assignment_summary, comments) in this_assignment.items():
 
-            data[student][0].append(assignment_summary)
+            # TESTING
+            if TESTING:
+                if student not in whitelist: continue
 
-            # by comment
-            for comment in comments:
-                if comment not in data[student][1]:
-                    data[student][1][comment] = list()
-                data[student][1][comment].append(a_name)
+            data[student][0].append(assignment_summary)
 
             # by assignment
             # each student should only appear once in each assignment,
             # so a student shouldn't have this assignment yet
-            data[student][2][a_name] = comments
+            data[student][1][a_name] = comments
+
+            # by comment
+            for feedback, tier, comment in comments:
+                if comment not in data[student][2]:
+                    data[student][2][comment] = list()
+                a_info = (feedback, tier, a_name)
+                data[student][2][comment].append(a_info)
 
         for student in students_not_here:
             data[student][0].append(summary(a_name))
             # for by assignment
-            data[student][2][a_name] = list()
+            data[student][1][a_name] = list()
 
     return data
 
@@ -255,19 +328,12 @@ def get_grader_assignment_comments(assignment) -> dict:
             { grader: [comments] }
             { grader: { student: [comments] }
     """
-    pass
+    assignment.list_submissions()
+    return dict()
 
 
-def get_grader_comments(by='assignment') -> dict:
+def get_grader_comments() -> dict:
     """Gets grader rubric comment usage on all assignments.
-
-    Args:
-        by (str): The format to return the data.
-            assignment: { grader: { assignment_name: [comments] } }
-            comment: { grader: { comment: [assignments] } }
-
-    Raises:
-        ValueError: If by does not receive a proper argument.
 
     Returns:
         dict: The data in the specified format.
@@ -282,7 +348,7 @@ def create_reports(data) -> tuple[dict[str, int], dict[str, str]]:
 
     Args:
         data (dict): The data in the format:
-            { student: ( [summaries], { comment: [assignments] }, { assignment_name: [comments] } ) }
+            { student: ( [summaries], { assignment_name: [comments] }, { comment: [assignments] } ) }
 
     Returns:
         tuple[dict[str, int], dict[str, str]]: The student report ids in the format:
@@ -298,27 +364,34 @@ def create_reports(data) -> tuple[dict[str, int], dict[str, str]]:
 
     line = '-' * 50
 
-    for i, (student, (summaries, by_comment, by_assignment)) in enumerate(data.items()):
+    for i, (student, (summaries, by_assignment, by_comment)) in enumerate(data.items()):
         ids[student] = (i + 1)
 
-        report_str = line + f'\n{REPORT_FILENAME}\nLast updated: {TODAY}\nReport ID: {i + 1}\n'
+        report_str = line + f'\n{REPORT_FILENAME}\n\nLast updated: {TODAY}\nReport ID: {i + 1}\n\n'
 
         # summary
-        report_str += line + '\nSUMMARY\n' + '\n'.join(summaries) + '\n'
-
-        # by comment
-        report_str += line + '\nBY COMMENT\n'
-        for comment, assignments in by_comment.items():
-            report_str += comment + '\n'
-            for a_name in remove_duplicates(assignments):
-                report_str += (' ' * 4) + a_name + '\n'
+        report_str += line + '\nSUMMARY\n\n' + '\n'.join(summaries) + '\n\n'
 
         # by assignment
-        report_str += line + '\nBY ASSIGNMENT\n'
+        report_str += line + '\nBY ASSIGNMENT\n\n'
         for a_name, comments in by_assignment.items():
             report_str += a_name + '\n'
             for comment in comments:
-                report_str += (' ' * 4) + comment + '\n'
+                c_name = comment[2]
+                num_stars = count_before(by_comment[c_name], a_name)
+                report_str += (' ' * 4) + format_indent(*comment)
+                if num_stars > 0:
+                    report_str += ' ' + ('*' * num_stars)
+                report_str += '\n'
+            report_str += '\n'
+
+        # by comment
+        report_str += line + '\nBY COMMENT\n\n'
+        for comment, assignments in sorted(by_comment.items()):
+            report_str += comment + '\n'
+            strs = [format_indent(*info) for info in assignments]
+            for a_str in remove_duplicates(strs):
+                report_str += (' ' * 4) + a_str + '\n'
 
         reports[student] = report_str
 
@@ -526,6 +599,9 @@ def main(course_period, assignment_name, from_file, save_files, apply, testing):
             Default is False.
     """
 
+    if not (from_file or save_files or apply):
+        logger.warning('Getting reports without saving or applying.')
+
     start = time.time()
 
     logger.info('Start')
@@ -573,7 +649,7 @@ def main(course_period, assignment_name, from_file, save_files, apply, testing):
 
     end = time.time()
 
-    logger.info('Total time: {:.2f} sec', end - start)
+    logger.info('Total time: {}', format_time(end - start))
 
 
 # ===========================================================================
