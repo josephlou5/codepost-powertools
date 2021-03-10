@@ -1,7 +1,6 @@
 """
 assign_failed.py
 Assign all submissions that fail tests to a grader.
-Cannot detect cases of all tests not running (0 total tests).
 
 GitHub repo:
 https://github.com/josephlou5/codepost-rubric-import-export
@@ -28,15 +27,6 @@ DUMP_FILE = 'failed_tests_submissions.csv'
 
 # ===========================================================================
 
-def validate_grader(course, grader) -> bool:
-    """Checks if a grader is a valid grader in a course."""
-
-    roster = codepost.roster.retrieve(course.id)
-    return grader in roster.graders
-
-
-# ===========================================================================
-
 def get_num_tests(assignment) -> int:
     """Gets the number of tests for this assignment.
 
@@ -51,12 +41,13 @@ def get_num_tests(assignment) -> int:
 
 # ===========================================================================
 
-def get_failed_submissions(assignment, cutoff, search_all=False) -> dict[int, tuple[str, int]]:
+def get_failed_submissions(assignment, cutoff, total_tests, search_all=False) -> dict[int, tuple[str, int]]:
     """Gets all the failed submissions from an assignment.
 
     Args:
         assignment (codepost.models.assignments.Assignment): The assignment.
         cutoff (int): The number of tests that denote "passed". Must be positive.
+        total_tests (int): The total number of tests for this assignment.
         search_all (bool): Whether to search all submissions, not just those with no grader.
             Default is False.
 
@@ -65,12 +56,21 @@ def get_failed_submissions(assignment, cutoff, search_all=False) -> dict[int, tu
             { submission_id: (students, tests_passed) }
     """
 
+    if cutoff > total_tests:
+        logger.info('All submissions will pass less than {} out of {} tests', cutoff, total_tests)
+        return dict()
+    if cutoff == total_tests:
+        logger.info('Searching for submissions that failed any of {} tests', total_tests)
+    else:
+        logger.info('Searching for submissions that pass less than {} out of {} tests', cutoff, total_tests)
+
     failed_submissions = dict()
     num_failed = 0
 
     submissions = assignment.list_submissions()
-    for submission in submissions:
+    for i, submission in enumerate(submissions):
         if submission.isFinalized: continue
+
         # only submissions that have no grader
         if not search_all and submission.grader is not None: continue
 
@@ -87,6 +87,9 @@ def get_failed_submissions(assignment, cutoff, search_all=False) -> dict[int, tu
             # no tests at all (compile error or related) or didn't meet cutoff
             failed_submissions[s_id] = (students, passed_count)
             num_failed += 1
+
+        if i % 100 == 99:
+            logger.debug('Done with submission {}', i)
 
     logger.debug('Found {} failed submissions', num_failed)
 
@@ -114,7 +117,7 @@ def assign_submissions(grader, submissions):
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
 @click.argument('grader', type=str, required=True)
-@click.option('-c', '--cutoff', type=int,
+@click.option('-c', '--cutoff', type=click.IntRange(1, None),
               help='The number of tests that denote "passed". Must be positive. Default is all passed.')
 @click.option('-sa', '--search-all', is_flag=True, default=False, flag_value=True,
               help='Whether to search all submissions, not just those with no grader. Default is False.')
@@ -122,7 +125,7 @@ def assign_submissions(grader, submissions):
               help='Whether to run as a test. Default is False.')
 def main(course_period, assignment_name, grader, cutoff, search_all, testing):
     """Assign all submissions that fail tests to a grader.
-    Cannot detect cases of all tests not running (0 total tests).
+    Saves all failed submissions to a `.csv` file.
 
     \b
     Args:
@@ -136,12 +139,6 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
         testing (bool): Whether to run as a test.
             Default is False.
     """
-
-    if cutoff is None:
-        pass
-    elif cutoff <= 0:
-        logger.error('"cutoff" must be positive')
-        return
 
     start = time.time()
 
@@ -176,21 +173,10 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
 
     total_tests = get_num_tests(assignment)
 
-    # fix cutoff arg
-    if cutoff is None or cutoff == total_tests:
+    if cutoff is None:
         cutoff = total_tests
-        logger.info('Searching for submissions that failed any tests')
-    elif cutoff > total_tests:
-        logger.info('All submissions will pass less than {} out of {} tests', cutoff, total_tests)
-        return
-    else:
-        logger.info('Searching for submissions that passed less than {} tests', cutoff)
 
-    if cutoff == 0:
-        logger.info('No submissions will pass less than 0 out of {} tests', total_tests)
-        return
-
-    failed_submissions = get_failed_submissions(assignment, cutoff, search_all)
+    failed_submissions = get_failed_submissions(assignment, cutoff, total_tests, search_all)
 
     if len(failed_submissions) > 0:
         # save to file
@@ -213,7 +199,7 @@ def main(course_period, assignment_name, grader, cutoff, search_all, testing):
 
     end = time.time()
 
-    logger.info('Total time: {:.2f} sec', end - start)
+    logger.info('Total time: {}', format_time(end - start))
 
 
 # ===========================================================================

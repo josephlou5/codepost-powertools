@@ -336,8 +336,10 @@ def get_rubric_comment_ids(assignment):
     for category in assignment.rubricCategories:
         for comment in category.rubricComments:
             if comment.name not in RUBRIC_COMMENTS: continue
-            COMMENTS[comment.name] = comment.id
-            ID_TO_NAME[comment.id] = comment.name
+            c_name = comment.name
+            COMMENTS[c_name] = comment.id
+            ID_TO_NAME[comment.id] = c_name
+            logger.debug('Found rubric comment for "{}"', c_name)
 
     diff = set(RUBRIC_COMMENTS) - set(COMMENTS.keys())
     if len(diff) > 0:
@@ -371,6 +373,7 @@ def get_missing_comment_ids(assignment):
         filename = comment.text.split('`')[1]
         MISSING[filename] = comment.id
         ID_TO_NAME[comment.id] = 'missing-' + filename.split('.')[0].lower()
+        logger.debug('Found missing rubric comment for "{}"', filename)
 
     logger.info('Got ids for "MISSING" rubric comments')
 
@@ -496,7 +499,7 @@ def create_submission_comments(submission) -> SubmissionComments:
 
     submission_comments = SubmissionComments(submission, comments)
 
-    first_file = files[min(files.keys())]
+    first_file = files[min(files.keys(), key=lambda n: n.lower())]
 
     # check for missing files
     missing_files = set(MISSING.keys()) - set(files.keys())
@@ -619,7 +622,7 @@ def main(course_period, assignment_name, testing):
 
     end = time.time()
 
-    logger.info('Total time: {:.2f} sec', end - start)
+    logger.info('Total time: {}', format_time(end - start))
 
 
 # ===========================================================================
