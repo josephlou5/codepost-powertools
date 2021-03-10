@@ -29,7 +29,7 @@ from shared import *
 
 COMMENT_AUTHOR = 'jdlou+autocommenter@princeton.edu'
 
-COMMENTS_FILE = 'added_auto_comments_{}_{}.csv'
+COMMENTS_FILE = 'output/added_auto_comments_{}_{}.csv'
 
 # ===========================================================================
 

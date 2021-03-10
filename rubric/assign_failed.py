@@ -22,7 +22,7 @@ from shared import *
 
 # ===========================================================================
 
-DUMP_FILE = 'failed_tests_submissions.csv'
+DUMP_FILE = 'output/failed_tests_submissions.csv'
 
 
 # ===========================================================================

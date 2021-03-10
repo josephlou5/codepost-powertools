@@ -62,11 +62,11 @@ DUMMY_GRADER = 'jdlou+dummygrader@princeton.edu'
 
 AUDIT_COMMENT = 'quality-assurance'
 
-CLAIMED_FILE = 'submission_claimed.txt'
-UNCLAIMED_FILE = 'submission_unclaimed.txt'
-OPENED_FILE = 'submissions_opened.csv'
-AUDIT_COUNTS_FILE = 'submissions_auditing.csv'
-AUDIT_REPORT_FILE = 'audit_report.txt'
+CLAIMED_FILE = 'output/submission_claimed.txt'
+UNCLAIMED_FILE = 'output/submission_unclaimed.txt'
+OPENED_FILE = 'output/submissions_opened.csv'
+AUDIT_COUNTS_FILE = 'output/submissions_auditing.csv'
+AUDIT_REPORT_FILE = 'output/audit_report.txt'
 
 
 # ===========================================================================
