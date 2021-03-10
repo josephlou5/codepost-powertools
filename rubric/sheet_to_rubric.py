@@ -486,7 +486,7 @@ def main(course_period, sheet_name, start_sheet, end_sheet, override, wipe, dele
 
     end = time.time()
 
-    logger.info('Total time: {:.2f} sec', end - start)
+    logger.info('Total time: {}', format_time(end - start))
 
 
 # ===========================================================================

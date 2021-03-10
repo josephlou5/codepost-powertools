@@ -181,7 +181,7 @@ def main(course_period, assignment_name, list_finalized, list_all, open_finalize
 
     end = time.time()
 
-    logger.info('Total time: {:.2f} sec', end - start)
+    logger.info('Total time: {}', format_time(end - start))
 
 
 # ===========================================================================

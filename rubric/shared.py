@@ -5,8 +5,10 @@ Shared methods.
 
 __all__ = [
     'log_in_codepost', 'set_up_service_account',
-    'get_course', 'get_126_course', 'make_email', 'validate_grader', 'get_assignment',
+    'get_course', 'get_126_course', 'get_assignment',
+    'course_str', 'make_email', 'validate_grader',
     'open_sheet', 'add_temp_worksheet',
+    'format_time',
 ]
 
 # ===========================================================================
@@ -75,11 +77,11 @@ def get_course(name, period) -> codepost.models.courses.Courses:
     """
 
     course = None
-    courses = codepost.course.list_available(name=name, period=period)
-    if len(courses) == 0:
+    matches = codepost.course.list_available(name=name, period=period)
+    if len(matches) == 0:
         logger.critical('No course found with name "{}" and period "{}"', name, period)
     else:
-        course = courses[0]
+        course = matches[0]
     return course
 
 
@@ -96,6 +98,30 @@ def get_126_course(period) -> codepost.models.courses.Courses:
     """
 
     return get_course('COS126', period)
+
+
+# ===========================================================================
+
+def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
+    """Get an assignment from a course.
+
+    Args:
+         course (codepost.models.courses.Courses): The course.
+         a_name (str): The name of the assignment.
+
+    Returns:
+        codepost.models.assignments.Assignments: The assignment.
+            Returns None if no assignment exists with that name.
+    """
+
+    assignment = None
+    for a in course.assignments:
+        if a.name == a_name:
+            assignment = a
+            break
+    if assignment is None:
+        logger.critical('Assignment "{}" not found', a_name)
+    return assignment
 
 
 # ===========================================================================
@@ -142,30 +168,6 @@ def validate_grader(course, grader) -> bool:
     if not validated:
         logger.error('Invalid grader in {}: "{}"', course_str(course), grader)
     return validated
-
-
-# ===========================================================================
-
-def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
-    """Get an assignment from a course.
-
-    Args:
-         course (codepost.models.courses.Courses): The course.
-         a_name (str): The name of the assignment.
-
-    Returns:
-        codepost.models.assignments.Assignments: The assignment.
-            Returns None if no assignment exists with that name.
-    """
-
-    assignment = None
-    for a in course.assignments:
-        if a.name == a_name:
-            assignment = a
-            break
-    if assignment is None:
-        logger.critical('Assignment "{}" not found', a_name)
-    return assignment
 
 
 # ===========================================================================
@@ -219,5 +221,25 @@ def add_temp_worksheet(sheet, title='temp', rows=1, cols=1, index=None) -> gspre
             return sheet.add_worksheet(f'{title}{count}', rows, cols, index)
         except gspread.exceptions.APIError:
             count += 1
+
+
+# ===========================================================================
+
+def format_time(seconds) -> str:
+    """Formats seconds into minutes or higher units of time.
+
+    Args:
+        seconds (float): The number of seconds.
+
+    Returns:
+        str: The formatted time.
+    """
+
+    minutes, remaining = divmod(seconds, 60)
+
+    if minutes == 0:
+        return f'{seconds:.2f} sec'
+
+    return f'{minutes} min {remaining:.0f} sec ({seconds:.2f})'
 
 # ===========================================================================

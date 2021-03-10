@@ -150,7 +150,7 @@ def driver(f):
 
         end = time.time()
 
-        logger.info('Total time: {:.2f} sec', end - start)
+        logger.info('Total time: {}', format_time(end - start))
 
     return update_wrapper(main, f)
 
