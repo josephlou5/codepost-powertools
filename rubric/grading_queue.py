@@ -49,7 +49,7 @@ import time
 from random import shuffle
 import comma
 import datetime
-import pygame
+# imports pygame if needed
 
 from shared import *
 
@@ -410,13 +410,13 @@ def stats(*args, **kwargs):
         total, n_finalized, unfinalized, claimed, unclaimed, drafts, dummy_grader = get_counts()
         # display stats
         logger.info('{} total submissions', total)
-        logger.info('{} finalized [{:.2%}]', n_finalized, n_finalized / total)
-        logger.info('{} unfinalized [{:.2%}]', unfinalized, unfinalized / total)
-        logger.info('{} claimed [{:.2%}]', claimed, claimed / total)
-        logger.info('  {} drafts [{:.2%}]', drafts, drafts / total)
-        logger.info('{} unclaimed [{:.2%}]', unclaimed, unclaimed / total)
+        logger.info('{:<3d} [{:>6.2%}] finalized ', n_finalized, n_finalized / total)
+        logger.info('{:<3d} [{:>6.2%}] unfinalized', unfinalized, unfinalized / total)
+        logger.info('{:<3d} [{:>6.2%}] claimed', claimed, claimed / total)
+        logger.info('{:<3d} [{:>6.2%}] unclaimed', unclaimed, unclaimed / total)
+        logger.info('{:<3d} [{:>6.2%}] drafts', drafts, drafts / total)
         if dummy_grader > 0:
-            logger.info('{} claimed by dummy grader [{:.2%}]', dummy_grader, dummy_grader / total)
+            logger.info('{:<3d} [{:>6.2%}] claimed by dummy grader', dummy_grader, dummy_grader / total)
         return
 
     logger.info('Displaying window')
@@ -432,6 +432,18 @@ def stats_window(title, get_counts, interval):
         get_counts (func): A method that returns the stats counts for an assignment.
         interval (int): The second interval for updating the window.
     """
+
+    # only importing pygame if needed
+    # don't print pygame welcome and support
+    pygame_key = 'PYGAME_HIDE_SUPPORT_PROMPT'
+    old_val = os.environ.get(pygame_key, None)
+    os.environ[pygame_key] = 'hide'
+    import pygame
+    if old_val is None:
+        os.environ.pop(pygame_key)
+    else:
+        os.environ[pygame_key] = old_val
+    del pygame_key, old_val
 
     def create_text(font_obj, x, y, text, color=BLACK, align='LEFT', min_x=None, max_x=None):
         """Creates args for displaying text."""
@@ -466,19 +478,16 @@ def stats_window(title, get_counts, interval):
     screen_height = 250
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption(title)
-    screen.fill(WHITE)
-    pygame.display.flip()
 
-    # create elements
+    # create text
     text25 = pygame.font.SysFont(font, 25)
     text15 = pygame.font.SysFont(font, 15)
     mono15 = pygame.font.SysFont(monofont, 15)
 
-    # text
     title_text = create_text(text25, screen_width / 2, 30, title, align='CENTER')
     nums_y = 70
     nums_dy = 25
-    nums_x0 = 10
+    nums_x0 = 15
     nums_x1 = 135
     nums_x2 = 210
     text_labels = ('Finalized', 'Unfinalized', 'Claimed', 'Unclaimed', 'Drafts', 'Held')
@@ -490,6 +499,12 @@ def stats_window(title, get_counts, interval):
     stats_pos = (225, 60)
     stats_box = pygame.Surface((stats_width, stats_height))
     stats_box.fill(WHITE)
+
+    # initial screen
+    screen.fill(WHITE)
+    screen.blit(*title_text)
+    screen.blit(*create_text(text25, screen_width / 2, screen_height / 2, 'Loading...', align='CENTER'))
+    pygame.display.flip()
 
     running = True
     while running:

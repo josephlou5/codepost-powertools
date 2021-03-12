@@ -13,7 +13,7 @@ and the [`gspread` package](https://gspread.readthedocs.io/en/latest/).
 - `random`: For randomness in `grading_queue.py`
 - `datetime`: For the current date in the report file in `track_comments.py`
 - `comma`: For working with `.csv` files
-- `pygame`: For live stats window in `grading_queue.py stats`
+- `pygame`: For live stats window in `grading_queue.py stats` (imports if needed)
 
 ## Usage
 
