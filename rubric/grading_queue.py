@@ -479,6 +479,8 @@ def stats_window(title, get_counts, interval):
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption(title)
 
+    clock = pygame.time.Clock()
+
     # create text
     text25 = pygame.font.SysFont(font, 25)
     text15 = pygame.font.SysFont(font, 15)
@@ -490,7 +492,7 @@ def stats_window(title, get_counts, interval):
     nums_x0 = 15
     nums_x1 = 135
     nums_x2 = 210
-    text_labels = ('Finalized', 'Unfinalized', 'Claimed', 'Unclaimed', 'Drafts', 'Held')
+    text_labels = ('Total', 'Finalized', 'Unfinalized', 'Claimed', 'Unclaimed', 'Drafts', 'Held')
     labels = [create_text(text15, nums_x0, nums_y + i * nums_dy, text) for i, text in enumerate(text_labels)]
 
     # stats box
@@ -506,14 +508,23 @@ def stats_window(title, get_counts, interval):
     screen.blit(*create_text(text25, screen_width / 2, screen_height / 2, 'Loading...', align='CENTER'))
     pygame.display.flip()
 
+    countdown = 0
+
     running = True
     while running:
+
+        dt = clock.tick() / 1000
 
         # check events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
         if not running: break
+
+        # wait for next interval
+        if countdown > 0:
+            countdown -= dt
+            continue
 
         screen.fill(WHITE)
         screen.blit(*title_text)
@@ -522,41 +533,52 @@ def stats_window(title, get_counts, interval):
 
         # get counts
         total, *counts = get_counts()
-        # total, *counts = 100, 50, 50, 80, 20, 30, 0
         n_finalized, unfinalized, claimed, unclaimed, drafts, dummy_grader = counts
+        countdown = interval
+
+        # update total
+        screen.blit(*create_text(mono15, nums_x1, nums_y, total, align='RIGHT'))
+
+        if total == 0:
+            # update screen
+            pygame.display.flip()
+            continue
 
         # update numbers and percentages
         for i, num in enumerate(counts):
-            screen.blit(*create_text(mono15, nums_x1, nums_y + i * nums_dy, num, align='RIGHT'))
-            screen.blit(*create_text(mono15, nums_x2, nums_y + i * nums_dy, f'{num / total:.2%}', align='RIGHT'))
+            screen.blit(*create_text(mono15, nums_x1, nums_y + (i + 1) * nums_dy, num, align='RIGHT'))
+            screen.blit(*create_text(mono15, nums_x2, nums_y + (i + 1) * nums_dy, f'{num / total:.2%}', align='RIGHT'))
 
-        # get widths and heights
+        # finalized stuff
         finalized_width = n_finalized / total * stats_width
-        unfinalized_width = unfinalized / total * stats_width
-        drafts_height = drafts / unfinalized * stats_height
-        unclaimed_height = stats_height - drafts_height
-
-        # create rects
         finalized_box = pygame.Rect(0, 0, finalized_width, stats_height)
-        drafts_box = pygame.Rect(finalized_width, 0, unfinalized_width, drafts_height)
-        unclaimed_box = pygame.Rect(finalized_width, drafts_height, unfinalized_width, unclaimed_height)
-
-        # draw rects
         pygame.draw.rect(stats_box, GREEN, finalized_box)
-        pygame.draw.rect(stats_box, YELLOW, drafts_box)
-        pygame.draw.rect(stats_box, RED, unclaimed_box)
+
+        # unfinalized stuff
+        unfinalized_width = unfinalized / total * stats_width
+
+        if unfinalized > 0:
+            # drafts stuff
+            drafts_height = drafts / unfinalized * stats_height
+            drafts_box = pygame.Rect(finalized_width, 0, unfinalized_width, drafts_height)
+            pygame.draw.rect(stats_box, YELLOW, drafts_box)
+
+            # unclaimed stuff
+            unclaimed_height = unclaimed / unfinalized * stats_height
+            unclaimed_box = pygame.Rect(finalized_width, drafts_height, unfinalized_width, unclaimed_height)
+            pygame.draw.rect(stats_box, RED, unclaimed_box)
 
         # write text underneath
         bottom_label_x = stats_pos[0]
         bottom_label_y = stats_pos[1] + stats_height + 15
-        finalized_text = create_text(text15, bottom_label_x + finalized_width / 2, bottom_label_y,
-                                     'Finalized', GREEN, align='CENTER')
-        unfinalized_text = create_text(text15, bottom_label_x + finalized_width + unfinalized_width / 2, bottom_label_y,
-                                       'Unfinalized', RED, align='CENTER',
-                                       min_x=finalized_text[1][0] + text15.size('Finalized')[0] / 2 + 5,
-                                       max_x=stats_pos[0] + stats_width)
-        screen.blit(*finalized_text)
-        screen.blit(*unfinalized_text)
+        if n_finalized > 0:
+            screen.blit(*create_text(text15, bottom_label_x + finalized_width / 2, bottom_label_y,
+                                     'Finalized', GREEN, align='CENTER', min_x=bottom_label_x))
+        if unfinalized > 0:
+            screen.blit(*create_text(text15, bottom_label_x + finalized_width + unfinalized_width / 2, bottom_label_y,
+                                     'Unfinalized', RED, align='CENTER',
+                                     min_x=bottom_label_x + finalized_width / 2 + text15.size('Finalized')[0] / 2 + 5,
+                                     max_x=stats_pos[0] + stats_width))
 
         # dummy grader stuff
         if dummy_grader > 0:
@@ -569,9 +591,6 @@ def stats_window(title, get_counts, interval):
         # update screen
         screen.blit(stats_box, stats_pos)
         pygame.display.flip()
-
-        # wait for next interval
-        pygame.time.wait(interval * 1000)
 
     pygame.quit()
 
