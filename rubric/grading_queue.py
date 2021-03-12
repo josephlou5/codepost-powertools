@@ -16,7 +16,7 @@ unclaim - saves all unclaimed submissions to a file
     - todo: ignores some submissions
 stats
     - lists current stats of the grading queue
-    - todo: real-time stats window
+    - displays live stats window
 finalized
     - todo: reads finalized submissions from a file
     - saves all finalized submissions to a file
@@ -49,6 +49,7 @@ import time
 from random import shuffle
 import comma
 import datetime
+import pygame
 
 from shared import *
 
@@ -67,6 +68,14 @@ UNCLAIMED_FILE = 'output/submission_unclaimed.txt'
 OPENED_FILE = 'output/submissions_opened.csv'
 AUDIT_COUNTS_FILE = 'output/submissions_auditing.csv'
 AUDIT_REPORT_FILE = 'output/audit_report.txt'
+
+# ===========================================================================
+
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+GREEN = (0, 175, 0)
+RED = (255, 0, 0)
+YELLOW = (255, 255, 0)
 
 
 # ===========================================================================
@@ -347,6 +356,8 @@ def unclaim(*args, **kwargs):
 @cli.command()
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
+@click.option('-w', '--window', type=click.IntRange(10, None),
+              help='The window update interval in seconds. Must be at least 10. If not given, will not display window.')
 @click.option('-t', '--testing', is_flag=True, default=False, flag_value=True,
               help='Whether to run as a test. Default is False.')
 @driver
@@ -361,21 +372,23 @@ def stats(*args, **kwargs):
     _ = args
 
     # get parameters
+    course = kwargs['COURSE']
     assignment = kwargs['ASSIGNMENT']
 
-    # get submissions
-    logger.info('Getting stats')
-    submissions = assignment.list_submissions()
-    total = len(submissions)
-    num_finalized = 0
-    num_unfinalized = 0
-    num_unclaimed = 0
-    num_drafts = 0
-    num_dummy_grader = 0
-    for s in submissions:
-        if s.isFinalized:
-            num_finalized += 1
-        else:
+    window = kwargs.get('window', None)
+
+    def get_counts():
+        """Gets the stats counts for an assignment."""
+        submissions = assignment.list_submissions()
+        num_finalized = 0
+        num_unfinalized = 0
+        num_unclaimed = 0
+        num_drafts = 0
+        num_dummy_grader = 0
+        for s in submissions:
+            if s.isFinalized:
+                num_finalized += 1
+                continue
             num_unfinalized += 1
             if s.grader is None:
                 num_unclaimed += 1
@@ -383,17 +396,169 @@ def stats(*args, **kwargs):
                 num_dummy_grader += 1
             else:
                 num_drafts += 1
+        num_unfinalized -= num_dummy_grader
+        num_claimed = num_finalized + num_drafts
+        return (
+            len(submissions),
+            num_finalized, num_unfinalized,
+            num_claimed, num_unclaimed,
+            num_drafts, num_dummy_grader
+        )
 
-    num_unfinalized -= num_dummy_grader
+    if window is None:
+        logger.info('Getting stats')
+        total, n_finalized, unfinalized, claimed, unclaimed, drafts, dummy_grader = get_counts()
+        # display stats
+        logger.info('{} total submissions', total)
+        logger.info('{} finalized [{:.2%}]', n_finalized, n_finalized / total)
+        logger.info('{} unfinalized [{:.2%}]', unfinalized, unfinalized / total)
+        logger.info('{} claimed [{:.2%}]', claimed, claimed / total)
+        logger.info('  {} drafts [{:.2%}]', drafts, drafts / total)
+        logger.info('{} unclaimed [{:.2%}]', unclaimed, unclaimed / total)
+        if dummy_grader > 0:
+            logger.info('{} claimed by dummy grader [{:.2%}]', dummy_grader, dummy_grader / total)
+        return
 
-    # display stats
-    logger.info('{} total submissions', total)
-    logger.info('{} finalized [{:.2%}]', num_finalized, num_finalized / total)
-    logger.info('{} unfinalized [{:.2%}]', num_unfinalized, num_unfinalized / total)
-    logger.info('  {} drafts', num_drafts)
-    logger.info('  {} unclaimed', num_unclaimed)
-    if num_dummy_grader > 0:
-        logger.info('{} claimed by dummy grader [{:.2%}]', num_dummy_grader, num_dummy_grader / total)
+    logger.info('Displaying window')
+    title = f'Stats for {course_str(course)} {assignment.name}'
+    stats_window(title, get_counts, window)
+
+
+def stats_window(title, get_counts, interval):
+    """Display the stats window.
+
+    Args:
+        title (str): The title of the window.
+        get_counts (func): A method that returns the stats counts for an assignment.
+        interval (int): The second interval for updating the window.
+    """
+
+    def create_text(font_obj, x, y, text, color=BLACK, align='LEFT', min_x=None, max_x=None):
+        """Creates args for displaying text."""
+
+        text = str(text)
+        width, height = font_obj.size(text)
+
+        px = x
+        py = y - height / 2
+
+        if align == 'CENTER':
+            px = x - width / 2
+        elif align == 'RIGHT':
+            px = x - width
+
+        if min_x is not None and px < min_x:
+            px = min_x
+        elif max_x is not None and px > max_x - width:
+            px = max_x - width
+
+        return font_obj.render(text, True, color), (px, py)
+
+    # constants
+    font = 'sfprotext'
+    monofont = 'sfnsmono'
+
+    # use pygame to display window
+    pygame.init()
+
+    # set up window
+    screen_width = 500
+    screen_height = 250
+    screen = pygame.display.set_mode((screen_width, screen_height))
+    pygame.display.set_caption(title)
+    screen.fill(WHITE)
+    pygame.display.flip()
+
+    # create elements
+    text25 = pygame.font.SysFont(font, 25)
+    text15 = pygame.font.SysFont(font, 15)
+    mono15 = pygame.font.SysFont(monofont, 15)
+
+    # text
+    title_text = create_text(text25, screen_width / 2, 30, title, align='CENTER')
+    nums_y = 70
+    nums_dy = 25
+    nums_x0 = 10
+    nums_x1 = 135
+    nums_x2 = 210
+    text_labels = ('Finalized', 'Unfinalized', 'Claimed', 'Unclaimed', 'Drafts', 'Held')
+    labels = [create_text(text15, nums_x0, nums_y + i * nums_dy, text) for i, text in enumerate(text_labels)]
+
+    # stats box
+    stats_width = 250
+    stats_height = 150
+    stats_pos = (225, 60)
+    stats_box = pygame.Surface((stats_width, stats_height))
+    stats_box.fill(WHITE)
+
+    running = True
+    while running:
+
+        # check events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        if not running: break
+
+        screen.fill(WHITE)
+        screen.blit(*title_text)
+        for label in labels:
+            screen.blit(*label)
+
+        # get counts
+        total, *counts = get_counts()
+        # total, *counts = 100, 50, 50, 80, 20, 30, 0
+        n_finalized, unfinalized, claimed, unclaimed, drafts, dummy_grader = counts
+
+        # update numbers and percentages
+        for i, num in enumerate(counts):
+            screen.blit(*create_text(mono15, nums_x1, nums_y + i * nums_dy, num, align='RIGHT'))
+            screen.blit(*create_text(mono15, nums_x2, nums_y + i * nums_dy, f'{num / total:.2%}', align='RIGHT'))
+
+        # get widths and heights
+        finalized_width = n_finalized / total * stats_width
+        unfinalized_width = unfinalized / total * stats_width
+        drafts_height = drafts / unfinalized * stats_height
+        unclaimed_height = stats_height - drafts_height
+
+        # create rects
+        finalized_box = pygame.Rect(0, 0, finalized_width, stats_height)
+        drafts_box = pygame.Rect(finalized_width, 0, unfinalized_width, drafts_height)
+        unclaimed_box = pygame.Rect(finalized_width, drafts_height, unfinalized_width, unclaimed_height)
+
+        # draw rects
+        pygame.draw.rect(stats_box, GREEN, finalized_box)
+        pygame.draw.rect(stats_box, YELLOW, drafts_box)
+        pygame.draw.rect(stats_box, RED, unclaimed_box)
+
+        # write text underneath
+        bottom_label_x = stats_pos[0]
+        bottom_label_y = stats_pos[1] + stats_height + 15
+        finalized_text = create_text(text15, bottom_label_x + finalized_width / 2, bottom_label_y,
+                                     'Finalized', GREEN, align='CENTER')
+        unfinalized_text = create_text(text15, bottom_label_x + finalized_width + unfinalized_width / 2, bottom_label_y,
+                                       'Unfinalized', RED, align='CENTER',
+                                       min_x=finalized_text[1][0] + text15.size('Finalized')[0] / 2 + 5,
+                                       max_x=stats_pos[0] + stats_width)
+        screen.blit(*finalized_text)
+        screen.blit(*unfinalized_text)
+
+        # dummy grader stuff
+        if dummy_grader > 0:
+            dummy_grader_width = dummy_grader / total * stats_width
+            dummy_grader_box = pygame.Rect(finalized_width + unfinalized_width, 0, dummy_grader_width, stats_height)
+            pygame.draw.rect(stats_box, BLACK, dummy_grader_box)
+            screen.blit(*create_text(text15, bottom_label_x + stats_width - dummy_grader_width / 2, bottom_label_y,
+                                     'Held', align='CENTER'))
+
+        # update screen
+        screen.blit(stats_box, stats_pos)
+        pygame.display.flip()
+
+        # wait for next interval
+        pygame.time.wait(interval * 1000)
+
+    pygame.quit()
 
 
 # ===========================================================================

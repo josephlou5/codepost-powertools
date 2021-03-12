@@ -13,6 +13,7 @@ and the [`gspread` package](https://gspread.readthedocs.io/en/latest/).
 - `random`: For randomness in `grading_queue.py`
 - `datetime`: For the current date in the report file in `track_comments.py`
 - `comma`: For working with `.csv` files
+- `pygame`: For live stats window in `grading_queue.py stats`
 
 ## Usage
 
@@ -118,10 +119,12 @@ Command-line arguments:
 
 #### stats
 Lists current stats of grading queue.
+Can display a live stats window.
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
 - `assignment_name`: The name of the assignment.
+- `-w`/`--window`: The window update interval in seconds. Must be at least `10`. If not given, will not display window.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
 #### finalized
