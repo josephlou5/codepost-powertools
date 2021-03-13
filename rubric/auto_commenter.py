@@ -5,7 +5,9 @@ Automatically add rubric comments to submissions.
 Rubric comments:
 - all MISSING file comments
 - no-comments
+- no-comments-in-file
 - no-space-after-slash
+- line-character-limit
 
 GitHub repo:
 https://github.com/josephlou5/codepost-rubric-import-export
@@ -34,9 +36,13 @@ COMMENTS_FILE = 'output/added_auto_comments_{}_{}.csv'
 # ===========================================================================
 
 RUBRIC_COMMENTS = [
-    'no-comments',  # 71462
-    'no-space-after-slash',  # 72151
+    'no-comments',
+    'no-comments-in-file',
+    'no-space-after-slash',
+    'line-character-limit',
 ]
+
+LINE_CHARACTER_LIMIT = 87
 
 # ids of the rubric comments
 # name -> id
@@ -75,14 +81,14 @@ class Comment:
             Converts a file dict into a comment creation kwargs dict.
 
     Methods:
-        add_instance(line_num)
-            Adds an instance of this rubric comment.
+        add_line_instance(line_num)
+            Adds an instance of this rubric comment in another line.
 
-        as_dict()
-            Returns the kwargs dict for creating this comment.
+        add_file_instance(file_name)
+            Adds an instance of this rubric comment in another file.
 
-        for_file()
-            Returns a csv representation of this comment for a file.
+        get_final_rep(lines=True)
+            Returns the kwargs dict and csv representation of this comment.
     """
 
     def __init__(self, s_id, comment_id, file_id, file_name, text='',
@@ -125,6 +131,7 @@ class Comment:
 
         self._text = text
         self._extra_instances = list()
+        self._extra_files = list()
 
         self._start_line = 0
         if start_line is not None:
@@ -149,6 +156,7 @@ class Comment:
     @classmethod
     def from_codepost(cls, file, comment):
         """Initializes a Comment object from a codePost comment.
+        Not used in this program.
 
         Args:
             file (codepost.models.files.Files): The file.
@@ -212,43 +220,67 @@ class Comment:
 
     # ==================================================
 
-    def _create_text(self) -> str:
-        """Create the text of the comment."""
+    def _create_text(self, lines=True) -> str:
+        """Create the text of the comment.
+
+        Args:
+            lines (bool): Whether to use the extra line instances.
+                If False, uses the extra file instances.
+                Default is True.
+        """
+
+        extra = 'line' if lines else 'file'
+        extras = self._extra_instances if lines else self._extra_files
 
         text = self._text
-        num_extra = len(self._extra_instances)
+        num_extra = len(extras)
         if num_extra > 0:
             if text != '':
                 text += '\n\n'
             if num_extra == 1:
-                text += f'Also see line {self._extra_instances[0]}.'
+                text += f'Also see {extra} {extras[0]}.'
             elif num_extra == 2:
-                text += f'Also see lines {self._extra_instances[0]} and {self._extra_instances[1]}.'
+                text += f'Also see {extra}s {extras[0]} and {extras[1]}.'
             else:
-                text += 'Also see lines '
-                # text += ''.join(f'{line}, ' for line in self._extra_instances[:-1])
-                for line in self._extra_instances[:-1]:
+                text += f'Also see {extra}s '
+                # text += ''.join(f'{line}, ' for line in extras[:-1])
+                for line in extras[:-1]:
                     text += str(line) + ', '
-                text += f'and {self._extra_instances[-1]}.'
+                text += f'and {extras[-1]}.'
+
         return text
 
     # ==================================================
 
-    def add_instance(self, line_num):
-        """Adds an instance of this rubric comment.
+    def add_line_instance(self, line_num):
+        """Adds an instance of this rubric comment in another line.
 
         Args:
             line_num (int): The line number of the repeat rubric comment (0-indexed).
         """
         self._extra_instances.append(line_num + 1)
 
-    def as_dict(self) -> dict:
-        """Returns the kwargs dict for creating this comment."""
-        return self.from_csv(self.for_file())
+    def add_file_instance(self, file_name):
+        """Adds an instance of this rubric comment in another file.
 
-    def for_file(self) -> dict:
-        """Returns a csv representation of this comment for a file."""
-        return {
+        Args:
+            file_name (str): The name of the file of the repeat rubric comment.
+        """
+        # add backticks to filename
+        self._extra_files.append('`' + file_name + '`')
+
+    # ==================================================
+
+    def get_final_rep(self, lines=True) -> tuple[dict, dict]:
+        """Returns the kwargs dict and csv representation of this comment.
+
+        Args:
+            lines (bool): Whether to use the extra line instances.
+                If False, uses the extra file instances.
+                Default is True.
+        """
+
+        as_csv = {
             'submission_id': self._s_id,
             'file_name': self._file_name,
             'file_id': self._file_id,
@@ -258,8 +290,11 @@ class Comment:
             'end_line': self._end_line,
             'start_char': self._start_char,
             'end_char': self._end_char,
-            'text': self._create_text(),
+            'text': self._create_text(lines),
         }
+        as_dict = self.from_csv(as_csv)
+
+        return as_dict, as_csv
 
 
 # ===========================================================================
@@ -273,14 +308,19 @@ class SubmissionComments:
 
     Properties:
         num_comments (int): The number of comments to apply to this submission.
-        for_file (list[str]): The comments in str format for saving in the file.
 
     Methods:
+        force_comment(*args, **kwargs)
+            Forces the addition of a comment to this submission.
+
         add_comment(*args, **kwargs)
             Adds a comment to this submission.
 
-        applying()
-            Returns the comments to apply to this submission.
+        add_no_comment(*args, **kwargs)
+            Adds a "no comment" comment to this submission.
+
+        get_final_comments()
+            Returns the comments to apply and for saving in a file.
     """
 
     def __init__(self, submission, comments=None):
@@ -309,19 +349,33 @@ class SubmissionComments:
             self._existing_comments.add(ID_TO_NAME[rubric_comment])
 
         self._comments = dict()
-        self._for_file = list()
+        self._no_comments = dict()
 
     # ==================================================
 
     @property
     def num_comments(self):
-        return len(self._comments)
-
-    @property
-    def for_file(self):
-        return self._for_file
+        return len(self._comments) + (1 if len(self._no_comments) > 0 else 0)
 
     # ==================================================
+
+    def force_comment(self, *args, **kwargs):
+        """Forces the addition of a comment to this submission.
+
+        Args:
+            The args and kwargs to create a Comment.
+        """
+
+        comment = Comment(self._s_id, *args, **kwargs)
+
+        key = 'force'
+        if key in self._comments:
+            i = 1
+            while f'{key}{i}' in self._comments:
+                i += 1
+            key += str(i)
+
+        self._comments[key] = comment
 
     def add_comment(self, *args, **kwargs):
         """Adds a comment to this submission.
@@ -337,27 +391,72 @@ class SubmissionComments:
         if name in self._existing_comments:
             return
 
-        if name in self._comments:
-            # update old comment with new instances if in same file and not same line
-            old_comment = self._comments[name]
-            if old_comment.file_name == comment.file_name and old_comment.line_num != comment.line_num:
-                old_comment.add_instance(comment.line_num)
-        else:
-            # new comment
-            self._comments[name] = comment
-            self._for_file.append(comment.for_file())
+        old_comment = self._comments.get(name, None)
 
-    def applying(self) -> list[dict]:
-        """Returns the comments to apply to this submission.
+        # new comment
+        if old_comment is None:
+            self._comments[name] = comment
+            return
+
+        # update old comment with new instances if in same file and not same line
+        if old_comment.file_name == comment.file_name and old_comment.line_num != comment.line_num:
+            old_comment.add_line_instance(comment.line_num)
+
+    def add_no_comment(self, *args, **kwargs):
+        """Adds a "no comment" comment to this submission.
+
+        Args:
+            The args and kwargs to create a Comment.
+        """
+
+        comment = Comment(self._s_id, *args, **kwargs)
+        name = comment.name
+
+        # don't add repeat comments
+        if name in self._existing_comments:
+            return
+
+        old_comment = self._no_comments.get(name, None)
+
+        # new comment
+        if old_comment is None:
+            self._no_comments[name] = comment
+            return
+
+        old_comment.add_file_instance(comment.file_name)
+
+    # ==================================================
+
+    def _get_no_comments(self) -> Comment:
+        """Returns the "no comments" comments."""
+        comment = self._no_comments.get('no-comments', None)
+        if comment is not None:
+            return comment
+        return self._no_comments.get('no-comments-in-file', None)
+
+    def get_final_comments(self) -> tuple[list[dict], list[dict]]:
+        """Returns the comments to apply and for saving in a file.
 
         Returns:
-            list[dict]: The comments to apply in kwargs format.
+            tuple[list[dict], list[dict]]: The comments to apply in kwargs format
+                and the comments for saving in a file.
         """
 
         applying = list()
+        for_file = list()
+
         for comment in self._comments.values():
-            applying.append(comment.as_dict())
-        return applying
+            as_dict, as_csv = comment.get_final_rep()
+            applying.append(as_dict)
+            for_file.append(as_csv)
+
+        no_comment = self._get_no_comments()
+        if no_comment is not None:
+            as_dict, as_csv = no_comment.get_final_rep()
+            applying.append(as_dict)
+            for_file.append(as_csv)
+
+        return applying, for_file
 
 
 # ===========================================================================
@@ -444,9 +543,15 @@ def parse_file(submission_comments, file) -> int:
     # - first asterisk
     state = 'normal'
 
-    num_comments = 0
+    total_comments = 0
 
     for line_num, line in enumerate(file.code.split('\n')):
+
+        if len(line) > LINE_CHARACTER_LIMIT and 'line-character-limit' in COMMENTS:
+            submission_comments.add_comment(
+                COMMENTS['line-character-limit'], f_id, f_name,
+                line=line_num, start_char=0, end_char=2
+            )
 
         if state in ('starting multi comment', 'in multi comment', 'first asterisk'):
             state = 'in multi comment'
@@ -476,7 +581,7 @@ def parse_file(submission_comments, file) -> int:
                     state = 'normal'
 
             elif state == 'slash comment':
-                num_comments += 1
+                total_comments += 1
 
                 if c.isalpha() and 'no-space-after-slash' in COMMENTS:
                     # in a comment, but there's no space
@@ -490,7 +595,7 @@ def parse_file(submission_comments, file) -> int:
                 break
 
             elif state == 'start multi comment':
-                num_comments += 1
+                total_comments += 1
 
                 if c == '*':
                     state = 'first asterisk'
@@ -516,7 +621,10 @@ def parse_file(submission_comments, file) -> int:
                 elif c != '*':
                     state = 'in multi comment'
 
-    return num_comments
+    if total_comments == 0 and 'no-comments-in-file' in COMMENTS:
+        submission_comments.add_no_comment(COMMENTS['no-comments-in-file'], f_id, f_name)
+
+    return total_comments
 
 
 # ===========================================================================
@@ -553,8 +661,20 @@ def create_submission_comments(submission) -> SubmissionComments:
         total_num_comments += parse_file(submission_comments, file)
 
     # no comments in any file
-    if total_num_comments == 0:
-        submission_comments.add_comment(COMMENTS['no-comments'], first_file.id, first_file.name)
+    if total_num_comments == 0 and 'no-comments' in COMMENTS:
+        submission_comments.add_no_comment(COMMENTS['no-comments'], first_file.id, first_file.name)
+
+    # parse readme for long lines
+    readme = files.get('readme.txt', None)
+    if readme is not None:
+        for line_num, line in enumerate(readme.code.split('\n')):
+            if len(line) > LINE_CHARACTER_LIMIT and 'line-character-limit' in COMMENTS:
+                submission_comments.force_comment(
+                    COMMENTS['line-character-limit'], readme.id, readme.name,
+                    text='Be sure to follow the line character limit, even in the readme!',
+                    line=line_num, start_char=0, end_char=2
+                )
+                break
 
     return submission_comments
 
@@ -699,8 +819,9 @@ def main(course_period, assignment_name, from_file, apply, testing):
             applying = list()
             for_file = list()
             for submission_comments in all_submission_comments:
-                applying += submission_comments.applying()
-                for_file += submission_comments.for_file
+                apply_comments, file_comments = submission_comments.get_final_comments()
+                applying += apply_comments
+                for_file += file_comments
 
             logger.info('Saving rubric comments to "{}" file', filename)
             comma.dump(for_file, filename)
