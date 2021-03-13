@@ -55,14 +55,14 @@ TEMPLATE_YES = ('x', 'yes', 'y')
 
 # ===========================================================================
 
-def get_assignment_rubric(worksheet) -> dict:
+def get_assignment_rubric(worksheet) -> dict[str, tuple[int, list[dict]]]:
     """Gets the rubric comments for an assignment from a worksheet.
 
     Args:
         worksheet (Worksheet): The Worksheet.
 
     Returns:
-        dict: The rubric comments in the format:
+        dict[str, tuple[int, list[dict]]] The rubric comments in the format:
             { category: (max_points, [comments]) }
     """
 
@@ -131,29 +131,29 @@ def get_assignment_rubric(worksheet) -> dict:
     return rubric
 
 
-def get_all_rubric_comments(course, sheet, start_sheet=0, end_sheet=None) -> dict:
+def get_all_rubric_comments(course, sheet, start_sheet=0, end_sheet=0) -> dict[int, dict[str: tuple]]:
     """Gets the rubric comments for a course from a sheet.
 
     Args:
         course (codepost.models.courses.Courses): The course.
         sheet (gspread.models.Spreadsheet): The sheet.
-        start_sheet (int): The index of the first sheet to pull from (0-indexed).
+        start_sheet (int): The index of the first sheet (0-indexed).
             Default is 0.
-        end_sheet (int): The index of the last sheet to pull from (0-indexed).
-            Default is the same as start_sheet.
+        end_sheet (int): The index of the last sheet (0-indexed).
+            Default is same as `start_sheet`.
 
     Returns:
-        dict: The rubric comments in the format:
+        dict[int, dict[str: tuple]]: The rubric comments in the format:
             { assignment_id: { category: (max_points, [comments]) } }
     """
 
-    logger.info('Getting info from "{}" sheet', sheet.title)
-
-    if end_sheet is None:
+    if end_sheet < start_sheet:
         end_sheet = start_sheet
 
+    logger.info('Getting info from "{}" sheet', sheet.title)
+
     # get the assignments to get rubrics for
-    a_ids = set(a.id for a in course.assignments)
+    a_ids = {a.id: a for a in course.assignments}
 
     # go through the sheet and find the assignments
     data = dict()
@@ -172,13 +172,12 @@ def get_all_rubric_comments(course, sheet, start_sheet=0, end_sheet=None) -> dic
         if a_id not in a_ids:
             continue
 
-        a_name = codepost.assignment.retrieve(a_id).name
+        assignment = a_ids.pop(a_id)
+        a_name = assignment.name
 
         logger.debug('Getting info for "{}" assignment', a_name)
         data[a_id] = get_assignment_rubric(worksheet)
         logger.debug('Got all info for "{}" assignment', a_name)
-
-        a_ids.remove(a_id)
 
     logger.info('Got all info from "{}" sheet', sheet.title)
 
@@ -411,8 +410,8 @@ def create_all_rubrics(rubrics, override_rubric=False, delete_missing=False, wip
 @click.command()
 @click.argument('course_period', type=str, required=True)
 @click.argument('sheet_name', type=str, required=True)
-@click.argument('start_sheet', type=int, required=False)
-@click.argument('end_sheet', type=int, required=False)
+@click.argument('start_sheet', type=click.IntRange(0, None), required=False)
+@click.argument('end_sheet', type=click.IntRange(0, None), required=False)
 @click.option('-o', '--override', is_flag=True, default=False, flag_value=True,
               help='Whether to override rubrics of assignments. Default is False.')
 @click.option('-d', '--delete', is_flag=True, default=False, flag_value=True,
@@ -476,8 +475,10 @@ def main(course_period, sheet_name, start_sheet, end_sheet, override, wipe, dele
     if sheet is None:
         return
 
-    if testing and start_sheet is None and end_sheet is None:
+    if start_sheet is None:
         start_sheet = 0
+    if end_sheet is None:
+        end_sheet = 0
     rubrics = get_all_rubric_comments(course, sheet, start_sheet, end_sheet)
 
     create_all_rubrics(rubrics, override, delete, wipe)

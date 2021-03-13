@@ -539,8 +539,13 @@ def main(course_period, sheet_name, start_assignment, end_assignment, wipe, repl
     if g_client is None:
         return
 
-    logger.info('Accessing COS126 course for period "{}"', course_period)
-    course = get_126_course(course_period)
+    logger.info('Accessing codePost course')
+    if testing:
+        logger.info('Running as test: Opening Joseph\'s Course')
+        course = get_course("Joseph's Course", 'S2021')
+    else:
+        logger.info('Accessing COS126 course for period "{}"', course_period)
+        course = get_126_course(course_period)
     if course is None:
         return
 
