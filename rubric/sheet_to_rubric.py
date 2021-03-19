@@ -272,7 +272,12 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
     logger.debug('Getting existing rubric comments')
     codepost_comments = dict()
     categories = dict()
+    empty_categories = list()
     for category in assignment.rubricCategories:
+        comments = category.rubricComments
+        if len(comments) > 0:
+            empty_categories.append(category)
+            continue
         categories[category.name] = category
         for comment in category.rubricComments:
             codepost_comments[comment.name] = comment
@@ -300,22 +305,35 @@ def create_assignment_rubric(a_id, rubric, override_rubric=False, delete_missing
         # delete rubric comments not in the sheet
         if delete_missing:
             logger.debug('Deleting comments not in the sheet')
+            search = set()
             for comment in missing_comments:
                 logger.debug('Deleting "{}" rubric comment', comment.name)
+                search.add(comment.rubricCategory)
                 comment.delete()
             logger.debug('Deleted {} comments', len(missing_comments))
 
-            # delete old rubric categories if they have no more comments
-            empty_categories = list()
-            for c_name in list(categories.keys()):
-                if len(categories[c_name].rubricComments) == 0:
-                    empty_categories.append(categories.pop(c_name))
-            if len(empty_categories) > 0:
-                logger.debug('Deleting empty categories')
-                for category in empty_categories:
-                    logger.debug('Deleting "{}" rubric category', category.name)
-                    category.delete()
-                logger.debug('Deleted {} empty categories', len(empty_categories))
+            # find possible empty categories
+            if len(search) > 0:
+                for c_name in list(categories.keys()):
+                    category = categories[c_name]
+                    c_id = category.id
+                    if c_id not in search:
+                        continue
+                    search.remove(c_id)
+                    if len(category.rubricComments) == 0:
+                        empty_categories.append(categories.pop(c_name))
+
+    if len(empty_categories) > 0:
+        logger.debug('Found {} categories not in the sheet: {}',
+                     len(empty_categories), ','.join(c.name for c in empty_categories))
+
+        # delete categories not in the sheet
+        if delete_missing:
+            logger.debug('Deleting empty categories')
+            for category in empty_categories:
+                logger.debug('Deleting "{}" rubric category', category.name)
+                category.delete()
+            logger.debug('Deleted {} empty categories', len(empty_categories))
 
     # create new categories (if needed)
     existing_categories = set(categories.keys())

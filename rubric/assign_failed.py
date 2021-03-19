@@ -89,7 +89,7 @@ def get_failed_submissions(assignment, cutoff, total_tests, search_all=False) ->
             num_failed += 1
 
         if i % 100 == 99:
-            logger.debug('Done with submission {}', i)
+            logger.debug('Done with submission {}', i + 1)
 
     logger.debug('Found {} failed submissions', num_failed)
 

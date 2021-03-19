@@ -86,6 +86,9 @@ class Worksheet:
         format_number_cell(rnge, fmt_type, pattern, update=False)
             Apply a number format to a cell.
 
+        add_formula(rnge, formula, update=False)
+            Add a formula to a cell.
+
         add_hyperlink(rnge, link, update=False)
             Add a hyperlink to a cell.
     """
@@ -421,14 +424,18 @@ class Worksheet:
 
         if update: self.update()
 
-    def add_hyperlink(self, rnge, link, update=False):
-        """Add a hyperlink to a cell.
+    def add_formula(self, rnge, formula, update=False):
+        """Add a formula to a cell.
 
         Args:
             rnge (str): The cell range.
-            link (str): The link.
+            formula (str): The formula.
             update (bool): Whether to update the Worksheet.
         """
+
+        if not formula.startswith('='):
+            formula = '=' + formula
+
         self._requests.append({
             'repeatCell': {
                 'range': {
@@ -436,10 +443,29 @@ class Worksheet:
                     **gridrange(rnge),
                 },
                 'cell': {
-                    'hyperlink': link,
+                    'userEnteredValue': {
+                        'formulaValue': formula,
+                    },
                 },
-                'fields': 'hyperlink',
+                'fields': 'userEnteredValue.formulaValue',
             }
         })
 
         if update: self.update()
+
+    def add_hyperlink(self, rnge, link, text=None, update=False):
+        """Add a hyperlink to a cell.
+
+        Args:
+            rnge (str): The cell range.
+            link (str): The link.
+            text (str): The label text.
+                Default is the link itself.
+            update (bool): Whether to update the Worksheet.
+        """
+
+        formula = f'=HYPERLINK("{link}"'
+        if text is not None:
+            formula += f', "{text}"'
+        formula += ')'
+        self.add_formula(rnge, formula, update)

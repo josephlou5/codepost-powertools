@@ -236,11 +236,21 @@ def format_time(seconds) -> str:
         str: The formatted time.
     """
 
-    minutes, remaining = map(int, divmod(seconds, 60))
+    remaining, secs = map(int, divmod(seconds, 60))
+    hrs, mins = map(int, divmod(remaining, 60))
 
-    if minutes == 0:
+    if remaining == 0:
         return f'{seconds:.2f} sec'
 
-    return f'{minutes} min {remaining:.0f} sec ({seconds:.2f})'
+    time_str = ''
+    if hrs > 0:
+        time_str += f'{hrs} hr '
+    if mins > 0:
+        time_str += f'{mins} min '
+    if secs > 0:
+        time_str += f'{secs} sec '
+    time_str += f'({seconds:.2f})'
+
+    return time_str
 
 # ===========================================================================
