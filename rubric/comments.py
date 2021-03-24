@@ -244,9 +244,6 @@ def screenshot_cmd(*args, **kwargs):
     # get parameters
     link = kwargs['link']
 
-    # TESTING remove later
-    link = 'https://codepost.io/code/335283/?comment=663245'
-
     logger.info('Extracting submission id and comment id from link')
 
     # get submission id and comment id
@@ -306,33 +303,34 @@ def screenshot_cmd(*args, **kwargs):
         logger.debug('Page loaded ({:.2f})', end - start)
 
         # hide grade
-        logger.debug('Hiding grade')
-        await page.evaluate(
-            '''() => {
-                const header = document.getElementsByClassName("layout--standard-console__header")[0];
-                const grade_div = header.firstElementChild.children[1];
-                grade_div.style.display = "none";
-            }'''
-        )
+        # logger.debug('Hiding grade')
+        # await page.evaluate(
+        #     '''() => {
+        #         const header = document.getElementsByClassName("layout--standard-console__header")[0];
+        #         const grade_div = header.firstElementChild.children[1];
+        #         grade_div.style.display = "none";
+        #     }'''
+        # )
 
         # collapse left sections
-        logger.debug('Collapsing sections')
-        section_arrows = await page.querySelectorAll('.ant-collapse-arrow')
-        for i, arrow in enumerate(section_arrows):
-            # skip files section
-            if i == 2: continue
-            # collapse section by clicking on its arrow
-            await arrow.click()
+        # logger.debug('Collapsing sections')
+        # section_arrows = await page.querySelectorAll('.ant-collapse-arrow')
+        # for i, arrow in enumerate(section_arrows):
+        #     # skip files section
+        #     if i == 2: continue
+        #     # collapse section by clicking on its arrow
+        #     await arrow.click()
 
         # select correct file
         if file_index != 0:
             logger.debug('Selecting correct file')
             # using click() scrolls the files page just in case it needs to be scrolled
-            page_files = await page.querySelectorAll('#file-menu li')
-            await page_files[file_index].click()
-            # await page.keyboard.down('Meta')
-            # await page.keyboard.press(str(file_index + 1))
-            # await page.keyboard.up('Meta')
+            # but since the left section is being hidden, that doesn't matter
+            # page_files = await page.querySelectorAll('#file-menu li')
+            # await page_files[file_index].click()
+            await page.keyboard.down('Meta')
+            await page.keyboard.press(str(file_index + 1))
+            await page.keyboard.up('Meta')
 
         # justify comment
         logger.debug('Justifying comment')
@@ -354,21 +352,46 @@ def screenshot_cmd(*args, **kwargs):
                 comments
             )
 
+        # hide header bar, slider bar, section panel, command bar, and intercom
+        logger.debug('Hiding unwanted elements')
+        await page.evaluate(
+            '''() => {
+                document.getElementsByClassName("layout--standard-console__header").forEach((x) => {
+                    x.style.display = "none";
+                });
+                document.getElementsByClassName("layout-resizer").forEach((x) => {
+                    x.style.visibility = "hidden";
+                });
+                document.getElementById("Code-Header").style.display = "none";
+                document.getElementById("commandbar-wrapper").style.display = "none";
+                document.getElementById("intercom-frame").style.display = "none";
+                document.getElementsByClassName("intercom-lightweight-app").forEach((x) => {
+                    x.style.display = "none";
+                });
+            }'''
+        )
+
         # code width - default 728
         logger.debug('Setting code width')
         width = 600
-        slider_max = int(await page.evaluate(
-            '''document.getElementsByClassName("rc-slider-handle-2")[0].getAttribute("aria-valuemax");''',
-            force_expr=True
-        ))
-        slider_per = width / slider_max * 100
+        # slider_max = int(await page.evaluate(
+        #     '''document.getElementsByClassName("rc-slider-handle-2")[0].getAttribute("aria-valuemax");''',
+        #     force_expr=True
+        # ))
+        # slider_per = width / slider_max * 100
+        # await page.evaluate(
+        #     '''(width, slider_per) => {
+        #         document.getElementById("code-container").style.width = width + "px";
+        #         // document.getElementsByClassName("rc-slider-track-1")[0].style.width = slider_per + "%";
+        #         // document.getElementsByClassName("rc-slider-handle-2")[0].style.left = slider_per + "%";
+        #     }''',
+        #     width, slider_per
+        # )
         await page.evaluate(
-            '''(width, slider_per) => {
+            '''(width) => {
                 document.getElementById("code-container").style.width = width + "px";
-                document.getElementsByClassName("rc-slider-track-1")[0].style.width = slider_per + "%";
-                document.getElementsByClassName("rc-slider-handle-2")[0].style.left = slider_per + "%";
             }''',
-            width, slider_per
+            width
         )
 
         # comment width - default 360
