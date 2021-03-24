@@ -11,6 +11,8 @@ ignore/
 *.txt
 *.json
 *.csv
+*.png
+*.pdf
 
 # PyCharm editor configuration
 .idea
