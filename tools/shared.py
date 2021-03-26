@@ -6,7 +6,7 @@ Shared methods.
 __all__ = [
     # types
     'Color',
-    'Course', 'Assignment', 'Submission', 'File', 'Comment',
+    'Course', 'Assignment', 'Submission', 'File', 'Comment', 'RubricComment', 'RubricCategory',
 
     # globals
     'OUTPUT_FOLDER',
@@ -20,6 +20,7 @@ __all__ = [
 ]
 
 # ===========================================================================
+
 import os
 from typing import (
     NewType,
@@ -28,7 +29,13 @@ from typing import (
 )
 
 import codepost
-from codepost.models import (courses, assignments, submissions, files, comments)
+from codepost.models.assignments import Assignments
+from codepost.models.comments import Comments
+from codepost.models.courses import Courses
+from codepost.models.files import Files
+from codepost.models.rubric_categories import RubricCategories
+from codepost.models.rubric_comments import RubricComments
+from codepost.models.submissions import Submissions
 from loguru import logger
 
 # ===========================================================================
@@ -36,11 +43,13 @@ from loguru import logger
 # types
 Color = Tuple[int, int, int]
 
-Course = NewType('Course', codepost.models.courses.Courses)
-Assignment = NewType('Assignment', codepost.models.assignments.Assignments)
-Submission = NewType('Submission', codepost.models.submissions.Submissions)
-File = NewType('File', codepost.models.files.Files)
-Comment = NewType('Comment', codepost.models.comments.Comments)
+Course = NewType('Course', Courses)
+Assignment = NewType('Assignment', Assignments)
+Submission = NewType('Submission', Submissions)
+File = NewType('File', Files)
+Comment = NewType('Comment', Comments)
+RubricComment = NewType('RubricComment', RubricComments)
+RubricCategory = NewType('RubricCategory', RubricCategories)
 
 # globals
 OUTPUT_FOLDER = 'output'

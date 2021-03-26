@@ -23,7 +23,7 @@ from typing import (
 )
 
 import gspread.models
-from gspread.utils import a1_range_to_grid_range as gridrange
+from gspread.utils import a1_range_to_grid_range as gridrange, rowcol_to_a1
 
 from shared import Color
 
@@ -55,12 +55,19 @@ class Worksheet:
         num_rows (int): The number of rows.
         num_frozen_rows (int): The number of frozen rows.
 
+    Static Methods:
+        to_a1(row, col)
+            Returns the row and column in A1 notation.
+
     Methods:
         update()
             Update the actual Google Sheet.
 
         get_cell(cell)
             Get a cell of the Worksheet.
+
+        get_values()
+            Gets all the values of the Worksheet.
 
         get_records(empty2zero=False, head=1, default_blank='')
             Returns the values of the Worksheet with the head row as keys.
@@ -196,6 +203,13 @@ class Worksheet:
 
     # ==================================================
 
+    @staticmethod
+    def to_a1(row: int, col: int) -> str:
+        """Returns the row and column in A1 notation."""
+        return rowcol_to_a1(row, col)
+
+    # ==================================================
+
     # public methods
 
     def update(self):
@@ -215,6 +229,10 @@ class Worksheet:
             GCell: The Cell.
         """
         return self._wkst.acell(cell)
+
+    def get_values(self) -> List[List[str]]:
+        """Gets all the values of the Worksheet."""
+        return self._wkst.get_all_values()
 
     def get_records(self, empty2zero: bool = False, head: int = 1, default_blank: Any = '') -> List[Dict[str, Any]]:
         """Gets the values of the Worksheet with the head row as keys.

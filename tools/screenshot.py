@@ -1136,15 +1136,9 @@ async def create_screenshots(comments: Sequence[Tuple[Submission, Comment, str, 
               help='Whether to adjust the tattoo to not overlap the comment. Default is False.')
 @driver
 def screenshot(*args, **kwargs):
-    """
-    Screenshots linked comments.
+    """Screenshots linked comments.
     Average time to load a page: ~25 sec.
     Average time to load a student view page: ~7 sec.
-
-    \b
-    Expected time:
-        Single link: 20-60 sec.
-        Explanation: 10-20 sec.
     """
 
     # not using args, but needs it in signature for positional arguments

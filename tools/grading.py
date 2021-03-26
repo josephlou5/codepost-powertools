@@ -115,8 +115,12 @@ def read_submissions_from_file(filepath: str, ext: str, objs: bool = False) -> U
     return submissions
 
 
-def dump_to_file(msg: str, data: Sequence[Mapping[str, Any]], filename: str, course: Course = None,
-                 assignment_name: str = None):
+def dump_to_file(msg: str,
+                 data: Sequence[Mapping[str, Any]],
+                 filename: str,
+                 course: Course = None,
+                 assignment_name: str = None
+                 ):
     """Dumps data to a file.
 
     Args:
@@ -154,8 +158,12 @@ def dump_to_file(msg: str, data: Sequence[Mapping[str, Any]], filename: str, cou
     comma.dump(data, output_file)
 
 
-def filter_submissions(action: str, submissions: List[Submission],
-                       num: int = None, percentage: int = 100, random: bool = False) -> List[Submission]:
+def filter_submissions(action: str,
+                       submissions: List[Submission],
+                       num: int = None,
+                       percentage: int = 100,
+                       random: bool = False
+                       ) -> List[Submission]:
     """Filters submissions.
 
     Args:
@@ -447,7 +455,7 @@ def claim_cmd(*args, **kwargs):
         logger.info('No submissions to claim')
         return
 
-    claiming = filter_submissions('Claiming', submissions, num, percentage, random)
+    claiming: List[Submission] = filter_submissions('Claiming', submissions, num, percentage, random)
 
     # claim submissions
     data = list()
@@ -530,7 +538,7 @@ def unclaim_cmd(*args, **kwargs):
         logger.info('No submissions to unclaim')
         return
 
-    unclaiming = filter_submissions('Unclaiming', submissions, num, percentage, random)
+    unclaiming: List[Submission] = filter_submissions('Unclaiming', submissions, num, percentage, random)
 
     # unclaim submissions
     data = list()
@@ -910,11 +918,7 @@ def finalize_cmd(*args, **kwargs):
               help='Whether to run as a test. Default is False.')
 @driver
 def stats_cmd(*args, **kwargs):
-    """
-    Lists current stats of the grading queue.
-
-    Expected time: < 10 seconds.
-    """
+    """Lists current stats of the grading queue."""
 
     # not using args, but need in signature for positional arguments
     _ = args

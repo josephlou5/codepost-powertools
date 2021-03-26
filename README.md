@@ -172,24 +172,59 @@ Command-line arguments:
 
 ---
 
-[comment]: <> (### rubric.py)
+### rubric.py
+In development.
 
-[comment]: <> (In development.)
+Create a [service account](https://gspread.readthedocs.io/en/latest/oauth2.html#for-bots-using-service-account)
+and share your Google Sheet with it.
+Save the `service_account.json` file in the `tools` directory.
 
-[comment]: <> (Create a [service account]&#40;https://gspread.readthedocs.io/en/latest/oauth2.html#for-bots-using-service-account&#41;)
+Run commands with:
+```
+> python rubric.py COMMAND [OPTIONS] ARGS
+```
 
-[comment]: <> (and share your Google Sheet with it.)
+#### Additional dependencies
+- `gspread`
 
-[comment]: <> (Save the `service_account.json` file in the `tools` directory.)
+#### to
+Exports a codePost rubric to a Google Sheet.
 
-[comment]: <> (Run commands with:)
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `sheet_name`: The sheet name.
+- `start_assignment`: The name of the first assignment. Default is the first one.
+- `end_assignment`: The name of the last assignment (inclusive).
+  - If `start_assignment` is given, default is the same.
+  - If `start_assignment` is not given, default is the last one.
+- `-w`/`--wipe`: Whether to wipe the current sheet. Default is `False`.
+- `-r`/`--replace`: Whether to replace the existing sheets. Default is `False`.
+- `-i`/`--instances`: Whether to count instances of rubric comments. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+  - If `start_assignment` and `end_assignment` are not given, uses only the first assignment.
 
-[comment]: <> (```)
+#### from
+Imports a codePost rubric from a Google Sheet.
 
-[comment]: <> (> python rubric.py COMMAND [OPTIONS] ARGS)
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `sheet_name`: The sheet name.
+- `start_sheet`: The index of the first sheet (0-indexed). Default is `0`.
+- `end_sheet`: The index of the last sheet (inclusive) (0-indexed). Default is same as `start_sheet`.
+- `-o`/`--override`: Whether to override rubrics of assignments. Default is `False`.
+  - "Override" means to update the rubric of an assignment with existing submissions.
+- `-d`/`--delete`: Whether to delete comments that are not in the sheet. Default is `False`.
+- `-w`/`--wipe`: Whether to wipe the current sheet. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
-[comment]: <> (```)
+#### rename
+Renames rubric comments.
 
-[comment]: <> (#### Additional dependencies)
+Takes names in `"Name"` column and replaces it with names in `"New name"` column.
 
-[comment]: <> (- `gspread`)
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `sheet_name`: The sheet name.
+- `start_sheet`: The index of the first sheet (0-indexed). Default is `0`.
+- `end_sheet`: The index of the last sheet (inclusive) (0-indexed). Default is same as `start_sheet`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
