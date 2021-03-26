@@ -154,6 +154,57 @@ def dump_to_file(msg: str, data: Sequence[Mapping[str, Any]], filename: str, cou
     comma.dump(data, output_file)
 
 
+def filter_submissions(action: str, submissions: List[Submission],
+                       num: int = None, percentage: int = 100, random: bool = False) -> List[Submission]:
+    """Filters submissions.
+
+    Args:
+        action (str): Whether claiming or unclaiming.
+        submissions (List[Submission]): The submissions.
+        num (int): The number of submissions to keep.
+            Default is all.
+        percentage (int): The percentage of submissions to keep.
+            Default is 100%.
+        random (bool): Whether to keep random submissions.
+            Default is False.
+
+    Returns:
+        List[Submission]: The filtered submissions.
+    """
+
+    action = action.title()
+
+    num_submissions = len(submissions)
+
+    # filter submissions
+    if num is not None:
+        # if num is given, use it
+        num_keep = num
+        if num_keep >= num_submissions:
+            num_keep = num_submissions
+            msg = ('{} all {} submissions', action, num_submissions)
+        else:
+            random_str = 'random ' if random else ''
+            msg = ('{} %s{} of {} submissions' % random_str, action, num_keep, num_submissions)
+    else:
+        # if num is not given, fall back on percentage
+        num_keep = int(num_submissions * percentage / 100)
+        if percentage == 100:
+            msg = ('{} all {} submissions', action, num_submissions)
+        else:
+            random_str = 'random ' if random else ''
+            msg = ('{} %s{}%% of {} submissions' % random_str, action, percentage, num_submissions)
+    logger.info(*msg)
+
+    copy = submissions[:]
+
+    # randomness
+    if random:
+        shuffle(copy)
+
+    return copy[:num_keep]
+
+
 # ===========================================================================
 
 # https://github.com/pallets/click/issues/513#issuecomment-504158316
@@ -392,38 +443,13 @@ def claim_cmd(*args, **kwargs):
             logger.error('All search flags are False')
             return
 
-    num_submissions = len(submissions)
-
-    if num_submissions == 0:
+    if len(submissions) == 0:
         logger.info('No submissions to claim')
         return
 
-    # filter submissions
-    if num is not None:
-        # if num is given, use it
-        num_claim = num
-        if num_claim >= num_submissions:
-            num_claim = num_submissions
-            msg = ('Claiming all {} submissions', num_submissions)
-        else:
-            random_str = 'random ' if random else ''
-            msg = ('Claiming %s{} of {} submissions' % random_str, num_claim, num_submissions)
-    else:
-        # if num is not given, fall back on percentage
-        num_claim = int(num_submissions * percentage / 100)
-        if percentage == 100:
-            msg = ('Claiming all {} submissions', num_submissions)
-        else:
-            random_str = 'random ' if random else ''
-            msg = ('Claiming %s{}%% of {} submissions' % random_str, percentage, num_submissions)
-    logger.info(*msg)
-
-    # randomness
-    if random:
-        shuffle(submissions)
+    claiming = filter_submissions('Claiming', submissions, num, percentage, random)
 
     # claim submissions
-    claiming = submissions[:num_claim]
     data = list()
     for submission in claiming:
         s_id = submission.id
@@ -438,7 +464,7 @@ def claim_cmd(*args, **kwargs):
 
         codepost.submission.update(s_id, grader=grader)
 
-    logger.debug('Claimed {} submissions to "{}"', num_claim, grader)
+    logger.debug('Claimed {} submissions to "{}"', len(claiming), grader)
 
     # dump to file
     dump_to_file('Saving claimed submissions to file',
@@ -504,32 +530,9 @@ def unclaim_cmd(*args, **kwargs):
         logger.info('No submissions to unclaim')
         return
 
-    # filter submissions
-    if num is not None:
-        # if num is given, use it
-        num_unclaim = num
-        if num_unclaim >= num_submissions:
-            num_unclaim = num_submissions
-            msg = ('Unclaiming all {} submissions', num_submissions)
-        else:
-            random_str = 'random ' if random else ''
-            msg = ('Unclaiming %s{} of {} submissions' % random_str, num_unclaim, num_submissions)
-    else:
-        # if num is not given, fall back on percentage
-        num_unclaim = int(num_submissions * percentage / 100)
-        if percentage == 100:
-            msg = ('Unclaiming all {} submissions', num_submissions)
-        else:
-            random_str = 'random ' if random else ''
-            msg = ('Unclaiming %s{}%% of {} submissions' % random_str, percentage, num_submissions)
-    logger.info(*msg)
-
-    # randomness
-    if random:
-        shuffle(submissions)
+    unclaiming = filter_submissions('Unclaiming', submissions, num, percentage, random)
 
     # unclaim submissions
-    unclaiming = submissions[:num_unclaim]
     data = list()
     for submission in unclaiming:
         s_id = submission.id
@@ -550,7 +553,7 @@ def unclaim_cmd(*args, **kwargs):
 
         codepost.submission.update(s_id, grader='', isFinalized=False)
 
-    logger.debug('Unclaimed {} submissions', num_unclaim)
+    logger.debug('Unclaimed {} submissions', len(unclaiming))
 
     # dump to file
     dump_to_file('Saving unclaimed submissions to file',
