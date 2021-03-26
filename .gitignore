@@ -7,9 +7,6 @@ service_account.json
 # test directory
 ignore/
 
-# fonts used in `screenshot.py`
-fonts/
-
 # output files
 *.txt
 *.json
