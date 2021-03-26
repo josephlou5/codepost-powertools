@@ -1,181 +1,195 @@
-# codepost-rubric-import-export
-Imports/exports codePost rubrics from/to Google Sheets
-using the [`codePost` SDK](https://github.com/codepost-io/codepost-python)
-and the [`gspread` package](https://gspread.readthedocs.io/en/latest/).
+# codepost-powertools
+Some helpful codePost tools using the
+[`codePost` SDK](https://github.com/codepost-io/codepost-python)!
+
+---
 
 ## Dependencies
-- `codepost`: To work with codePost
-- `gspread`: To work with Google Sheets
-- `click`: For command line interface
-- `loguru`: For logging status messages
-- `time`: For timing
-- `os`: For working with local files and directories
-- `random`: For randomness in `grading_queue.py`
-- `datetime`: For the current date in the report file in `track_comments.py`
-- `comma`: For working with `.csv` files
-- `pygame`: For live stats window in `grading_queue.py stats` (imports if needed)
+
+### Built-ins
+- `datetime`
+- `functools`: For updating wrappers
+- `os`
+- `time`
+- `typing`
+
+### Other Packages
+- `codepost`
+- `comma`
+- `click`
+- `loguru`
+
+---
 
 ## Usage
 
 Get your [codePost API key](https://docs.codepost.io/docs/first-steps-with-the-codepost-python-sdk#2-obtaining-your-codepost-api-key)
-and save the `.codepost-config.yaml` or `codepost-config.yaml` file in the `rubric` directory.
-
-Create a [service account](https://gspread.readthedocs.io/en/latest/oauth2.html#for-bots-using-service-account)
-and share your Google Sheet with it. Save the `service_account.json` file in the `rubric` directory.
-The name of this file can be customized in `shared.py`.
+and save the `.codepost-config.yaml` or `codepost-config.yaml` file in the `tools` directory.
 
 Whenever testing, the dummy course `Joseph's Course` is used instead of an actual codePost course.
 
-### rubric_to_sheet.py
-Exports a codePost rubric to a Google Sheet.
+---
 
-Command-line arguments:
-- `course_period`: The period of the COS126 course to export from.
-- `sheet_name`: The name of the sheet to import the rubrics to.
-- `start_assignment`: The assignment to start getting rubrics for. Default is the first one.
-- `end_assignment`: The assignment to stop getting rubrics for (inclusive).
-  - If `start_assignment` is not given, default is the last one.
-  - If `start_assignment` is given, default is the same as `start_assignment`.
-- `-w`/`--wipe`: Whether to wipe the current sheet. Default is `False`.
-- `-r`/`--replace`: Whether to replace the existing sheets. Default is `False`.
-  - If `False`, adds new sheets for each assignment.
-- `-i`/`--instances`: Whether to count instances of rubric comments. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.   
-  - If running as a test and `start_assignment` and `end_assignment` are not given, only get first assignment.
-
-### sheet_to_rubric.py
-Imports a codePost rubric from a Google Sheet, using the `name` field of rubric comments to account for updates.
-
-Command-line arguments:
-- `course_period`: The period of the COS126 course to import to.
-- `sheet_name`: The name of the sheet to pull the rubrics from.
-- `start_sheet`: The index of the first sheet to pull from (0-indexed). Default is `0`.
-- `end_sheet`: The index of the last sheet to pull from (0-indexed). Default is same as `start_sheet`.
-- `-o`/`--override`: Whether to override rubrics of assignments. Default is `False`.
-  - If `False`, will ignore every assignment with existing submissions.
-- `-w`/`--wipe`: Whether to completely wipe the existing rubric. Default is `False`.
-- `-d`/`--delete`: Whether to delete comments that are not in the sheet. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
-  - If running as a test and `start_sheet` and `end_sheet` are not given, only get first sheet.
-
-### auto_commenter.py
-Automatically add rubric comments to submissions.
-Skips finalized submissions and files with any comments.
-Saves all the created comments to a `.csv` file.
-
-Command-line arguments:
-- `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
-- `-f`/`--from-file`: Whether to read the comments from a file. Default is `False`.
-- `-a`/`--apply`: Whether to apply the comments. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
-
-### assign_failed.py
-Assign all submissions that fail tests to a grader.
-Saves all failed submissions to a `.csv` file.
-
-Command-line arguments:
-- `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
-- `grader`: The grader to assign the submissions to. Accepts netid or email.
-- `-c`/`--cutoff`: The number of tests that denote "passed". Must be positive. Default is all passed.
-- `-sa`/`--search-all`: Whether to search all submissions, not just those with no grader. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
-
-### grading_queue.py
-Grading queue related operations.
+### grading.py
+Grading related operations.
+Saves output files to a folder called `output`.
 
 Run commands with:
 ```
-> python grading_queue.py COMMAND [OPTIONS] ARGS
+> python grading.py COMMAND [OPTIONS] ARGS
 ```
+
+#### Additional dependencies
+- `random`
+- `pygame`: for `stats` command
 
 #### claim
 Claims submissions to a grader.
-Saves all claimed submissions to a file.
+Saves claimed submissions to file.
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
+- `assignment_name`: The assignment name.
+- `file`: The file to read submissions ids from.
+  - If `.txt` file, reads one submission id per line.
+  - If `.csv` file, reads from `submission_id` column.
+  - If not given or no ids found, uses the search flags to go through all submissions.
 - `-g`/`--grader`: The grader to claim to. Accepts netid or email. Default is `DUMMY_GRADER`.
-- `-f`/`--from`: The grader to claim from. Accepts netid or email. Default is `None` (unclaimed submissions).
-- `-n`/`--num`: The number of submissions to claim. Must be positive. Overrides `percentage` if both given. Default is ALL.
+- `-n`/`--num`: The number of submissions to claim. Overrides `percentage` if both given. Default is ALL.
 - `-p`/`--percentage`: The percentage of submissions to claim, as an `int` (e.g. 60% is 60). Default is 100%.
 - `-r`/`--random`: Whether to claim random submissions. Default is `False`.
+- `-sa`/`--search-all`: Search all submissions. Default is `False`.
+- `-uf`/`--unfinalized`: Search unfinalized submissions. Default is `False`.
+- `-uc`/`--unclaimed`: Search unclaimed submissions. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
 #### unclaim
-Unclaims submissions from a grader.
-Saves all unclaimed submissions to a file.
+Unclaims submissions.
+Saves unclaimed submissions to file.
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
-- `-g`/`--grader`: The grader to unclaim from. Accepts netid or email. Default is `DUMMY_GRADER`.
-- `-n`/`--num`: The number of submissions to unclaim. Must be positive. Overrides `percentage` if both given. Default is ALL.
+- `assignment_name`: The assignment name.
+- `file`: The file to read submissions ids from.
+  - If `.txt` file, reads one submission id per line.
+  - If `.csv` file, reads from `submission_id` column.
+  - If not given or no ids found, gets all submissions claimed by `DUMMY_GRADER`.
+- `-u`/`--unfinalize`: Whether to unfinalize and unclaim finalized submissions. Default is `False`.
+- `-n`/`--num`: The number of submissions to unclaim. Overrides `percentage` if both given. Default is ALL.
 - `-p`/`--percentage`: The percentage of submissions to unclaim, as an `int` (e.g. 60% is 60). Default is 100%.
 - `-r`/`--random`: Whether to unclaim random submissions. Default is `False`.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
+#### ids
+Creates mapping between student netids and submission ids.
+Saves mapping to file.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The assignment name.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+#### find
+Finds submissions.
+Returns intersection of search flags.
+Saves found submissions to file.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The assignment name.
+- `-g`/`--grader`: The grader to filter. Accepts netid or email.
+- `-s`/`--student`: The student to filter. Accepts netid or email.
+  - If given, prints student's submission and does not save to file.
+- `-f`/`--finalized`: Find finalized submissions. Default is `False`.
+- `-uf`/`--unfinalized`: Find unfinalized submissions. Default is `False`.
+- `-c`/`--claimed`: Find claimed submissions. Default is `False`.
+- `-uc`/`--unclaimed`: Find unclaimed submissions. Default is `False`.
+- `-d`/`--drafts`: Find drafts. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+#### failed
+Finds submissions that fail tests.
+Saves found submissions and test results to files.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The assignment name.
+- `-c`/`--cutoff`: The number of tests that denote "passed". Default is all passed.
+  - If more than the total tests, does not save all submissions to file.
+- `-sa`/`--search-all`: Whether to search all submissions, not just those with no grader. Default is `False`.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
+#### finalize
+Finalizes submissions.
+Saves finalized submissions to file.
+
+Command-line arguments:
+- `course_period`: The period of the COS126 course.
+- `assignment_name`: The assignment name.
+- `file`: The file to read submissions ids from.
+  - If `.txt` file, reads one submission id per line.
+  - If `.csv` file, reads from `submission_id` column.
+- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+
 #### stats
-Lists current stats of grading queue.
-Can display a live stats window.
+Lists current stats of the grading queue.
 
 Command-line arguments:
 - `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
-- `-w`/`--window`: The window update interval in seconds. Must be at least `10`. If not given, will not display window.
+- `assignment_name`: The assignment name.
+- `-w`/`--window`: The window update interval in seconds. Must be at least 10.
+  - If not given, will only print stats.
 - `-t`/`--testing`: Whether to run as a test. Default is `False`.
 
-#### finalized
-Finds finalized submissions.
+---
+
+### screenshot.py
+Screenshots linked comments.
+Saves screenshots in `screenshots > Course > Assignment`.
+
+#### Additional dependencies
+- `asyncio`
+- `PIL`
+- `pyppdf`: To fix a [Chromium download error](https://github.com/miyakogi/pyppeteer/issues/219#issuecomment-563077061) in `pyppeteer`
+- `pyppeteer`
+- `re`
 
 Command-line arguments:
-- `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
-- `-s`/`--save`: Whether to save the submissions to a file. Default is `False`.
-- `-o`/`--open`: Whether to open the finalized submissions. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+- `link` (optional): A comment link.
+- `-f`/`--file`: A file to read submission links from.
+  - If `.txt` file, reads one submission link per line.
+  - If `.csv` file, reads from `link` column or `submission_id` and `comment_id` columns.
+- `-t`/`--timeout`: Timeout limit in seconds. Must be at least 30. Default is 60 sec.
+- `-nt`/`--no-timeout`: Whether to run without timeout. Default is `False`.
+- `-e`/`--explanation`: Whether to show the comment explanation. Default is `False`.
+- `-fc`/`--fit`: Whether to fit to comment. Default is `False`.
+  - If `True`, the tattoo is automatically made one line and always put in the bottom right corner.
+- `-o`/`--one-line`: Whether to make the tattoo one line. Default is `False`.
+- `-c`/`--corner`: Whether to optimize the corner of the tattoo. Default is `False`.
+  - Expands the height of the image.
+- `-a`/`--adjust`: Whether to adjust the tattoo to not overlap the comment. Default is `False`.
+  - Expands the height of the image.
 
-#### audit
-Deals with auditing submissions.
+---
 
-Command-line arguments:
-- `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
-- `-r`/`--report`: Whether to generate a report of the auditing. Default is `False`.
-  - If `True`, will not do anything else.
-- `-ff`/`--from-file`: Whether to read the submissions from a file. Default is `False`.
-- `-f`/`--only-finalized`: Whether to only search finalized submissions. Default is `False`.
-- `-n`/`--num-times`: How many times each submission should be audited. Must be positive. Default is `2`.
-- `-l`/`--list-submission`: Whether to list the submissions. Default is `False`.
-- `-s`/`--save`: Whether to save the submissions to a file. Default is `False`.
-- `-o`/`--open`: Whether to open the submissions. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+[comment]: <> (### rubric.py)
 
-### find_no_comments.py
-Find all submissions that have no comments.
-To "open" a submission means to remove its grader and mark it as unfinalized,
-so that another grader can claim it from the queue.
+[comment]: <> (In development.)
 
-Command-line arguments:
-- `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment.
-- `-lf`/`--list-finalized`: Whether to list finalized submissions that have no comments. Default is `False`.
-- `-la`/`--list-all`: Whether to list all submissions that have no comments. Default is `False`.
-- `-of`/`--open-finalized`: Whether to open finalized submissions that have no comments. Default is `False`.
-- `-oa`/`--open-all`: Whether to open all submissions that have no comments. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+[comment]: <> (Create a [service account]&#40;https://gspread.readthedocs.io/en/latest/oauth2.html#for-bots-using-service-account&#41;)
 
-### track_comments.py
-Track rubric comment usage for students and graders and creates reports.
+[comment]: <> (and share your Google Sheet with it.)
 
-- `course_period`: The period of the COS126 course.
-- `assignment_name`: The name of the assignment to apply the reports to.
-- `-f`/`--from-file`: Whether to read the reports from files. Default is `False`.
-  - If reports files for some students are missing, won't generate a report for them.
-  - If no report files exist, will grab from codePost.
-- `-s`/`--save-files`: Whether to save the reports as files. Default is `False`.
-  - If reading reports from files was successful, no need to save files again.
-- `-a`/`--apply`: Whether to apply the reports to the submissions. Default is `False`.
-- `-t`/`--testing`: Whether to run as a test. Default is `False`.
+[comment]: <> (Save the `service_account.json` file in the `tools` directory.)
+
+[comment]: <> (Run commands with:)
+
+[comment]: <> (```)
+
+[comment]: <> (> python rubric.py COMMAND [OPTIONS] ARGS)
+
+[comment]: <> (```)
+
+[comment]: <> (#### Additional dependencies)
+
+[comment]: <> (- `gspread`)

@@ -5,19 +5,36 @@ Contains the Worksheet class.
 gspread API
 https://gspread.readthedocs.io/en/latest/index.html
 
-sheet batch updating
+Sheet batch updating
 https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/batchUpdate
 """
 
-__all__ = ['Worksheet']
+__all__ = [
+    'GSpreadsheet', 'GWorksheet',
+    'Worksheet'
+]
 
 # ===========================================================================
+
+from typing import (
+    NewType, Any,
+    List, Dict,
+    Optional,
+)
 
 import gspread.models
 from gspread.utils import a1_range_to_grid_range as gridrange
 
+from shared import Color
+
 # ===========================================================================
 
+# types
+GSpreadsheet = NewType('GSpreadsheet', gspread.models.Spreadsheet)
+GWorksheet = NewType('GWorksheet', gspread.models.Worksheet)
+GCell = NewType('GCell', gspread.models.Cell)
+
+# constants
 MAX_RGB = 255
 
 
@@ -93,27 +110,28 @@ class Worksheet:
             Add a hyperlink to a cell.
     """
 
-    DEFAULT_COL_WIDTH = 100
+    DEFAULT_COL_WIDTH: int = 100
 
     # ==================================================
 
-    def __init__(self, worksheet):
+    def __init__(self, worksheet: GWorksheet):
         """Initialize a Worksheet.
 
         Args:
-            worksheet (gspread.models.Worksheet): The worksheet.
+            worksheet (GWorksheet): The worksheet.
         """
-        self._sheet = worksheet.spreadsheet
-        self._wkst = worksheet
-        self._id = worksheet.id
-        self._requests = list()
+
+        self._sheet: GSpreadsheet = worksheet.spreadsheet
+        self._wkst: GWorksheet = worksheet
+        self._id: int = worksheet.id
+        self._requests: List[Dict] = list()
 
     # ==================================================
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self._wkst)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr(self._wkst)
 
     # ==================================================
@@ -125,7 +143,7 @@ class Worksheet:
         return self._wkst.title
 
     @title.setter
-    def title(self, val):
+    def title(self, val: str):
         self._wkst.update_title(val)
 
     @property
@@ -140,8 +158,20 @@ class Worksheet:
 
     # private methods
 
-    def _get_range(self, rnge, dim) -> dict:
-        """Return the DimensionRange dict of the given range str."""
+    def _get_range(self, rnge: str, dim: str) -> Dict[str, int]:
+        """Returns the DimensionRange dict of a range.
+
+        Args:
+            rnge (str): The cell range.
+            dim (str): The dimension.
+                Choices: ROW, COLUMN.
+
+        Returns:
+            Dict[str, int]: The dimension range dict
+        """
+
+        if dim.lower() not in ('row', 'column'):
+            raise ValueError(f'Invalid dimension: {dim}')
 
         grid = gridrange(rnge)
 
@@ -149,7 +179,8 @@ class Worksheet:
             'sheet_id': self._id,
             'dimension': dim.upper() + 'S',
         }
-        dim = dim[0].upper() + dim[1:].lower()
+
+        dim = dim.title()
         if f'start{dim}Index' in grid:
             rd['startIndex'] = grid[f'start{dim}Index']
         if f'end{dim}Index' in grid:
@@ -157,10 +188,10 @@ class Worksheet:
 
         return rd
 
-    def _get_row_range(self, row) -> dict:
+    def _get_row_range(self, row: str) -> dict:
         return self._get_range(row, 'row')
 
-    def _get_col_range(self, col) -> dict:
+    def _get_col_range(self, col: str) -> dict:
         return self._get_range(col, 'column')
 
     # ==================================================
@@ -168,24 +199,25 @@ class Worksheet:
     # public methods
 
     def update(self):
-        """Update the actual Google Sheet."""
+        """Updates the Google Sheet with requests."""
+
         body = {'requests': self._requests}
         self._sheet.batch_update(body)
-        self._requests = list()
+        self._requests.clear()
 
-    def get_cell(self, cell) -> gspread.models.Cell:
-        """Get a cell of the Worksheet.
+    def get_cell(self, cell: str) -> GCell:
+        """Gets a cell of the Worksheet.
 
         Args:
             cell (str): The A1 notation of the cell.
 
         Returns:
-            gspread.models.Cell: The Cell.
+            GCell: The Cell.
         """
         return self._wkst.acell(cell)
 
-    def get_records(self, empty2zero=False, head=1, default_blank='') -> list:
-        """Returns the values of the Worksheet with the head row as keys.
+    def get_records(self, empty2zero: bool = False, head: int = 1, default_blank: Any = '') -> List[Dict[str, Any]]:
+        """Gets the values of the Worksheet with the head row as keys.
 
         Args:
             empty2zero (bool): Whether empty cells are converted to 0.
@@ -196,28 +228,28 @@ class Worksheet:
                 Default is the empty string.
 
         Returns:
-            list: The values in the format:
+            List[Dict[str, Any]]: The values in the format:
                 [ { header1: val1, header2: val2, ... }, ... ]
         """
         return self._wkst.get_all_records(empty2zero=empty2zero, head=head, default_blank=default_blank)
 
-    def get_row_values(self, row) -> list:
-        """Returns the values of a row.
+    def get_row_values(self, row: int) -> List[Optional[str]]:
+        """Gets the values of a row.
 
         Args:
             row (int): The row number (1-indexed).
 
         Returns:
-            list: The row values.
+            List[Optional[str]]: The row values.
         """
         return self._wkst.row_values(row)
 
     def set_values(self, *args):
-        """Set the values of the Worksheet."""
+        """Sets the values of the Worksheet."""
         self._wkst.update(*args)
 
-    def resize(self, rows=None, cols=None):
-        """Resize the Worksheet.
+    def resize(self, rows: int = None, cols: int = None):
+        """Resizes the Worksheet.
 
         Args:
             rows (int): The new number of rows.
@@ -225,47 +257,51 @@ class Worksheet:
         """
         self._wkst.resize(rows, cols)
 
-    def freeze_rows(self, rows, update=False):
-        """Freeze a number of rows.
+    def freeze_rows(self, rows: int, update: bool = False):
+        """Freezes a number of rows.
 
         Args:
             rows (int): The number of rows to freeze.
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
-        """
-        self._requests.append({
-            'updateSheetProperties': {
-                'properties': {
-                    'sheetId': self._id,
-                    'gridProperties': {
-                        'frozenRowCount': rows,
+
+        if not update:
+            self._requests.append({
+                'updateSheetProperties': {
+                    'properties': {
+                        'sheetId': self._id,
+                        'gridProperties': {
+                            'frozenRowCount': rows,
+                        },
                     },
-                },
-                'fields': 'gridProperties.frozenRowCount',
-            }
-        })
+                    'fields': 'gridProperties.frozenRowCount',
+                }
+            })
+        else:
+            self._wkst.freeze(rows=rows)
+            self.update()
 
-        if update: self.update()
-        """
-        self._wkst.freeze(rows=rows)
-
-    def reset_col_width(self, col, update=False):
-        """Reset the width of a column.
+    def reset_col_width(self, col: str, update: bool = False):
+        """Resets the width of a column.
 
         Args:
             col (str): The column range.
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
         self.set_col_width(col, self.DEFAULT_COL_WIDTH, update)
 
-    def set_col_width(self, col, width, update=False):
-        """Set the width of a column.
+    def set_col_width(self, col: str, width: int, update: bool = False):
+        """Sets the width of a column.
 
         Args:
             col (str): The column range.
             width (int): The new width.
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
+
         self._requests.append({
             'updateDimensionProperties': {
                 'properties': {
@@ -278,13 +314,15 @@ class Worksheet:
 
         if update: self.update()
 
-    def hide_col(self, col, update=False):
-        """Hide a column.
+    def hide_col(self, col: str, update: bool = False):
+        """Hides a column.
 
         Args:
             col (str): The column range.
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
+
         self._requests.append({
             'updateDimensionProperties': {
                 'properties': {
@@ -297,13 +335,15 @@ class Worksheet:
 
         if update: self.update()
 
-    def merge_cells(self, rnge, update=False):
-        """Merge cells.
+    def merge_cells(self, rnge: str, update: bool = False):
+        """Merges cells.
 
         Args:
             rnge (str): The cell range.
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
+
         self._requests.append({
             'mergeCells': {
                 'range': {
@@ -316,27 +356,32 @@ class Worksheet:
 
         if update: self.update()
 
-    def format_cell(self, rnge,
-                    font_family=None,
-                    bold=None,
-                    background_color=None,
-                    text_color=None,
-                    text_align=None,
-                    vertical_align=None,
-                    wrap=None,
-                    update=False):
-        """Format a cell.
+    def format_cell(self,
+                    rnge: str,
+                    font_family: str = None,
+                    bold: bool = None,
+                    background_color: Color = None,
+                    text_color: Color = None,
+                    text_align: str = None,
+                    vertical_align: str = None,
+                    wrap: str = None,
+                    update: bool = False):
+        """Formats a cell.
 
         Args:
             rnge (str): The cell range.
             font_family (str): The font family.
             bold (bool): Whether the text is bold.
-            background_color (tuple): The background color.
-            text_color (tuple): The text color.
+            background_color (Color): The background color.
+            text_color (Color): The text color.
             text_align (str): The text (horizontal) alignment type.
+                Choices: LEFT, CENTER, RIGHT.
             vertical_align (str): The vertical alignment type.
+                Choices: TOP, MIDDLE, BOTTOM.
             wrap (str): The wrapping type.
+                Choices: OVERFLOW_CELL, CLIP, WRAP.
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
 
         fmt = dict()
@@ -394,16 +439,19 @@ class Worksheet:
 
         if update: self.update()
 
-    def format_number_cell(self, rnge, fmt_type, pattern, update=False):
-        """Apply a number format to a cell.
+    def format_number_cell(self, rnge: str, fmt_type: str, pattern: str, update: bool = False):
+        """Applies a number format to a cell.
 
         Args:
             rnge (str): The cell range.
             fmt_type (str): The format type.
-                Can be NUMBER, PERCENT, etc.
+                Choices: TEXT, NUMBER, PERCENT, CURRENCY, DATE, TIME, DATE_TIME, SCIENTIFIC.
             pattern (str): The formatting pattern.
+                https://developers.google.com/sheets/api/guides/formats
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
+
         self._requests.append({
             'repeatCell': {
                 'range': {
@@ -424,13 +472,14 @@ class Worksheet:
 
         if update: self.update()
 
-    def add_formula(self, rnge, formula, update=False):
-        """Add a formula to a cell.
+    def add_formula(self, rnge: str, formula: str, update: bool = False):
+        """Adds a formula to a cell.
 
         Args:
             rnge (str): The cell range.
             formula (str): The formula.
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
 
         if not formula.startswith('='):
@@ -453,8 +502,8 @@ class Worksheet:
 
         if update: self.update()
 
-    def add_hyperlink(self, rnge, link, text=None, update=False):
-        """Add a hyperlink to a cell.
+    def add_hyperlink(self, rnge: str, link: str, text: str = None, update: bool = False):
+        """Adds a hyperlink to a cell.
 
         Args:
             rnge (str): The cell range.
@@ -462,6 +511,7 @@ class Worksheet:
             text (str): The label text.
                 Default is the link itself.
             update (bool): Whether to update the Worksheet.
+                Default is False.
         """
 
         formula = f'=HYPERLINK("{link}"'

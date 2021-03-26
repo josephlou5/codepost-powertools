@@ -4,25 +4,47 @@ Shared methods.
 """
 
 __all__ = [
-    'log_in_codepost', 'set_up_service_account',
+    # types
+    'Color',
+    'Course', 'Assignment', 'Submission', 'File', 'Comment',
+
+    # globals
+    'OUTPUT_FOLDER',
+
+    # methods
+    'log_in_codepost',
     'get_course', 'get_126_course', 'get_assignment',
     'course_str', 'make_email', 'validate_grader',
-    'open_sheet', 'add_temp_worksheet',
     'format_time',
+    'validate_file',
 ]
 
 # ===========================================================================
-
 import os
-from loguru import logger
+from typing import (
+    NewType,
+    Sequence, Tuple,
+    Optional, Union,
+)
+
 import codepost
-# to get rid of error messages
-from codepost.models import (courses, assignments)
-import gspread
+from codepost.models import (courses, assignments, submissions, files, comments)
+from loguru import logger
 
 # ===========================================================================
 
-SERVICE_ACCOUNT_FILE = 'service_account.json'
+# types
+Color = Tuple[int, int, int]
+
+Course = NewType('Course', codepost.models.courses.Courses)
+Assignment = NewType('Assignment', codepost.models.assignments.Assignments)
+Submission = NewType('Submission', codepost.models.submissions.Submissions)
+File = NewType('File', codepost.models.files.Files)
+Comment = NewType('Comment', codepost.models.comments.Comments)
+
+# globals
+OUTPUT_FOLDER = 'output'
+DEFAULT_EXTS = ('.txt', '.csv')
 
 
 # ===========================================================================
@@ -45,25 +67,9 @@ def log_in_codepost() -> bool:
     return True
 
 
-def set_up_service_account() -> gspread.Client:
-    """Sets up the Google service account to connect with Google Sheets.
-
-    Returns:
-        gspread.Client: The client.
-            Returns None if unsuccessful.
-    """
-
-    g_client = None
-    if os.path.exists(SERVICE_ACCOUNT_FILE):
-        g_client = gspread.service_account(SERVICE_ACCOUNT_FILE)
-    else:
-        logger.critical('"{}" file not found in directory', SERVICE_ACCOUNT_FILE)
-    return g_client
-
-
 # ===========================================================================
 
-def get_course(name, period) -> codepost.models.courses.Courses:
+def get_course(name: str, period: str) -> Optional[Course]:
     """Gets a course from codePost.
     If there are duplicates, returns the first one found.
 
@@ -72,20 +78,18 @@ def get_course(name, period) -> codepost.models.courses.Courses:
         period (str): The period of the course.
 
     Returns:
-        codepost.models.courses.Courses: The course.
+        Course: The course.
             Returns None if unsuccessful.
     """
 
-    course = None
     matches = codepost.course.list_available(name=name, period=period)
     if len(matches) == 0:
         logger.critical('No course found with name "{}" and period "{}"', name, period)
-    else:
-        course = matches[0]
-    return course
+        return None
+    return matches[0]
 
 
-def get_126_course(period) -> codepost.models.courses.Courses:
+def get_126_course(period: str) -> Optional[Course]:
     """Gets a COS126 course from codePost.
     If there are duplicates, returns the first one found.
 
@@ -93,44 +97,41 @@ def get_126_course(period) -> codepost.models.courses.Courses:
         period (str): The period of the course.
 
     Returns:
-        codepost.models.courses.Courses: The course.
+        Course: The course.
             Returns None if unsuccessful.
     """
-
     return get_course('COS126', period)
 
 
 # ===========================================================================
 
-def get_assignment(course, a_name) -> codepost.models.assignments.Assignments:
+def get_assignment(course: Course, assignment_name: str) -> Optional[Assignment]:
     """Get an assignment from a course.
 
     Args:
-         course (codepost.models.courses.Courses): The course.
-         a_name (str): The name of the assignment.
+         course (Course): The course.
+         assignment_name (str): The name of the assignment.
 
     Returns:
-        codepost.models.assignments.Assignments: The assignment.
-            Returns None if no assignment exists with that name.
+        Assignment: The assignment.
+            Returns None if unsuccessful.
     """
 
-    assignment = None
-    for a in course.assignments:
-        if a.name == a_name:
-            assignment = a
-            break
-    if assignment is None:
-        logger.critical('Assignment "{}" not found', a_name)
-    return assignment
+    for assignment in course.assignments:
+        if assignment.name == assignment_name:
+            return assignment
+
+    logger.critical('Assignment "{}" not found', assignment_name)
+    return None
 
 
 # ===========================================================================
 
-def course_str(course, delim=' ') -> str:
+def course_str(course: Course, delim: str = ' ') -> str:
     """Returns a str representation of a course.
 
     Args:
-        course (codepost.models.courses.Courses): The course.
+        course (Course): The course.
         delim (str): The deliminating str between the name and the period.
 
     Returns:
@@ -141,7 +142,7 @@ def course_str(course, delim=' ') -> str:
 
 # ===========================================================================
 
-def make_email(netid) -> str:
+def make_email(netid: str) -> str:
     """Turns a potential netid into an email.
 
     Args:
@@ -156,12 +157,15 @@ def make_email(netid) -> str:
     return netid + '@princeton.edu'
 
 
-def validate_grader(course, grader) -> bool:
+def validate_grader(course: Course, grader: str) -> bool:
     """Validates a grader for a course.
 
     Args:
-        course (codepost.models.courses.Courses): The course.
+        course (Course): The course.
         grader (str): The grader. Accepts netid or email.
+
+    Returns:
+        bool: Whether the grader is a valid grader in the course.
     """
 
     grader = make_email(grader)
@@ -173,60 +177,7 @@ def validate_grader(course, grader) -> bool:
 
 # ===========================================================================
 
-def open_sheet(g_client, sheet_name) -> gspread.models.Spreadsheet:
-    """Opens a Google Sheet.
-
-    Args:
-        g_client (gspread.Client): The Client used.
-        sheet_name (str): The name of the sheet to open.
-
-    Returns:
-        gspread.models.Spreadsheet: The spreadsheet.
-            Returns None if unsuccessful.
-    """
-    sheet = None
-    try:
-        sheet = g_client.open(sheet_name)
-    except gspread.exceptions.SpreadsheetNotFound:
-        logger.critical('Spreadsheet "{}" not found', sheet_name)
-    return sheet
-
-
-# ===========================================================================
-
-def add_temp_worksheet(sheet, title='temp', rows=1, cols=1, index=None) -> gspread.models.Worksheet:
-    """Adds a temp worksheet to a sheet.
-
-    Args:
-        sheet (gspread.models.Spreadsheet): The sheet.
-        title (str): The title of the temp worksheet.
-            Default is 'temp'. Will add numbers if the name already exists.
-        rows (int): The number of rows.
-            Default is 1.
-        cols (int): The number of cols.
-            Default is 1.
-        index (int): The index where the temp worksheet should go.
-            Default is None.
-
-    Returns:
-        gspread.models.Worksheet: The temp worksheet.
-    """
-
-    try:
-        return sheet.add_worksheet(title, rows, cols, index)
-    except gspread.exceptions.APIError:
-        pass
-    count = 1
-    while True:
-        try:
-            return sheet.add_worksheet(f'{title}{count}', rows, cols, index)
-        except gspread.exceptions.APIError:
-            count += 1
-
-
-# ===========================================================================
-
-def format_time(seconds) -> str:
+def format_time(seconds: float) -> str:
     """Formats seconds into minutes or higher units of time.
 
     Args:
@@ -252,5 +203,45 @@ def format_time(seconds) -> str:
     time_str += f'({seconds:.2f})'
 
     return time_str
+
+
+# ===========================================================================
+
+def validate_file(file: str,
+                  output_folder: str = OUTPUT_FOLDER,
+                  exts: Sequence[str] = DEFAULT_EXTS
+                  ) -> Union[Tuple[None, None], Tuple[str, str]]:
+    """Validates a file.
+
+    Args:
+        file (str): The file to validate.
+        output_folder (str): The output folder.
+            Default is `OUTPUT_FOLDER`.
+        exts (Sequence[str]): The valid extensions.
+            Default is `DEFAULT_EXTS`.
+
+    Returns:
+        Tuple[Optional[str], Optional[str]]: The filepath and file extension.
+            Returns None, None if not found.
+    """
+
+    if file is None:
+        return None, None
+
+    # check file existence
+    filepath = file
+    if not os.path.exists(filepath):
+        filepath = os.path.join(output_folder, filepath)
+        if not os.path.exists(filepath):
+            logger.error('File "{}" not found', file)
+            return None, None
+
+    # check file extension
+    _, ext = os.path.splitext(filepath)
+    if ext not in exts:
+        logger.warning('Unsupported file type "{}"', ext)
+        return None, None
+
+    return filepath, ext
 
 # ===========================================================================
