@@ -1,6 +1,6 @@
 """
 myworksheet.py
-Contains the Worksheet class.
+Worksheet class.
 
 gspread API
 https://gspread.readthedocs.io/en/latest/index.html
@@ -10,32 +10,35 @@ https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/batchUpd
 """
 
 __all__ = [
-    'GSpreadsheet', 'GWorksheet',
+    'GSpreadsheet', 'GWorksheet', 'GCell',
     'Worksheet'
 ]
 
 # ===========================================================================
 
 from typing import (
-    NewType, Any,
+    Any,
     List, Dict,
     Optional,
 )
 
 import gspread.models
-from gspread.utils import a1_range_to_grid_range as gridrange, rowcol_to_a1
+from gspread.utils import (
+    a1_range_to_grid_range as gridrange,
+    rowcol_to_a1
+)
 
 from shared import Color
 
 # ===========================================================================
 
 # types
-GSpreadsheet = NewType('GSpreadsheet', gspread.models.Spreadsheet)
-GWorksheet = NewType('GWorksheet', gspread.models.Worksheet)
-GCell = NewType('GCell', gspread.models.Cell)
+GSpreadsheet = gspread.models.Spreadsheet
+GWorksheet = gspread.models.Worksheet
+GCell = gspread.models.Cell
 
 # constants
-MAX_RGB = 255
+MAX_RGB: int = 255
 
 
 # ===========================================================================
@@ -122,7 +125,7 @@ class Worksheet:
     # ==================================================
 
     def __init__(self, worksheet: GWorksheet):
-        """Initialize a Worksheet.
+        """Initializes a Worksheet.
 
         Args:
             worksheet (GWorksheet): The worksheet.
@@ -151,7 +154,18 @@ class Worksheet:
 
     @title.setter
     def title(self, val: str):
-        self._wkst.update_title(val)
+        if val == self.title: return
+        try:
+            self._wkst.update_title(val)
+        except gspread.exceptions.APIError:
+            pass
+        count = 1
+        while True:
+            try:
+                self._wkst.update_title(f'{val}{count}')
+                return
+            except gspread.exceptions.APIError:
+                count += 1
 
     @property
     def num_rows(self) -> int:
@@ -284,21 +298,20 @@ class Worksheet:
                 Default is False.
         """
 
-        if not update:
-            self._requests.append({
-                'updateSheetProperties': {
-                    'properties': {
-                        'sheetId': self._id,
-                        'gridProperties': {
-                            'frozenRowCount': rows,
-                        },
+        # self._wkst.freeze(rows=rows)
+        self._requests.append({
+            'updateSheetProperties': {
+                'properties': {
+                    'sheetId': self._id,
+                    'gridProperties': {
+                        'frozenRowCount': rows,
                     },
-                    'fields': 'gridProperties.frozenRowCount',
-                }
-            })
-        else:
-            self._wkst.freeze(rows=rows)
-            self.update()
+                },
+                'fields': 'gridProperties.frozenRowCount',
+            }
+        })
+
+        if update: self.update()
 
     def reset_col_width(self, col: str, update: bool = False):
         """Resets the width of a column.
@@ -436,11 +449,11 @@ class Worksheet:
             fmt['wrapStrategy'] = wrap
             fields.append('wrapStrategy')
 
-        if len(text_fmt) > 0:
-            fmt['textFormat'] = text_fmt
-
         if len(fields) == 0:
             return
+
+        if len(text_fmt) > 0:
+            fmt['textFormat'] = text_fmt
 
         self._requests.append({
             'repeatCell': {
@@ -458,7 +471,7 @@ class Worksheet:
         if update: self.update()
 
     def format_number_cell(self, rnge: str, fmt_type: str, pattern: str, update: bool = False):
-        """Applies a number format to a cell.
+        """Formats a number cell.
 
         Args:
             rnge (str): The cell range.
@@ -537,3 +550,5 @@ class Worksheet:
             formula += f', "{text}"'
         formula += ')'
         self.add_formula(rnge, formula, update)
+
+# ===========================================================================
