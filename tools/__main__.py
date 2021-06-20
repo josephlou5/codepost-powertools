@@ -16,6 +16,7 @@ import reports
 import rubric_to_sheet
 import sheet_to_rubric
 import tier_report
+import num_comments
 
 # ===========================================================================
 
@@ -171,6 +172,32 @@ def reports_cmd(**kwargs):
 
 
 @click.command(
+    name='num_comments',
+    **CTX_SETTINGS,
+    help='Counts the number of (applied) comments.'
+)
+@click.argument('course_name', type=str, required=True)
+@click.argument('course_period', type=str, required=True)
+@click.argument('assignment_name', type=str, required=True)
+@click.option('-rc', '--rubric-comments', is_flag=True, default=True, flag_value=False,
+              help='Whether to count rubric comments. Default is True.')
+@click.option('-cc', '--custom-comments', is_flag=True, default=True, flag_value=False,
+              help='Whether to count custom comments. Default is True.')
+@click.option('-sa', '--search-all', is_flag=True, default=False, flag_value=True,
+              help='Whether to search all submissions. Default is False.')
+@click.option('-sc', '--search-claimed', is_flag=True, default=False, flag_value=True,
+              help='Whether to search claimed submissions. Default is False.')
+@click.option('-su', '--search-unclaimed', is_flag=True, default=False, flag_value=True,
+              help='Whether to search unclaimed submissions. Default is False.')
+@click.option('-sf', '--search-finalized', is_flag=True, default=True, flag_value=False,
+              help='Whether to search finalized submissions. Default is True.')
+@wrap
+def num_comments_cmd(**kwargs):
+    # TODO: test
+    num_comments.main(**kwargs, log=True)
+
+
+@click.command(
     name='tier_report',
     **CTX_SETTINGS,
     help='Generates a report of tier comments usage.'
@@ -217,6 +244,7 @@ rubric = NaturalOrderGroup(commands=[
 comments = NaturalOrderGroup(commands=[
     auto_comments_cmd,
     reports_cmd,
+    num_comments_cmd,
     tier_report_cmd,
 ])
 # grading = NaturalOrderGroup(commands=[])
