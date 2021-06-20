@@ -9,7 +9,6 @@ from typing import (
     List, Tuple, Dict
 )
 
-import comma
 from loguru import logger
 
 from shared import *
@@ -158,8 +157,7 @@ def main(course_name: str,
     if log and len(unfinalized) > 0:
         logger.debug('{} unfinalized submissions', len(unfinalized))
 
-    path = get_path(file=REPORT_FILENAME, course=course, assignment=assignment)
-    if log: logger.info('Saving report to "{}"', path)
-    comma.dump(report, path)
+    filepath = get_path(file=REPORT_FILENAME, course=course, assignment=assignment)
+    save_csv(report, filepath, description='report', log=log)
 
 # ===========================================================================

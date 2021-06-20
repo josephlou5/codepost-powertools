@@ -6,6 +6,7 @@ Shared methods for output.
 __all__ = [
     # methods
     'get_path',
+    'save_csv',
     'validate_file',
 ]
 
@@ -13,10 +14,12 @@ __all__ = [
 
 import os
 from typing import (
-    Sequence, Tuple,
+    Any,
+    Sequence, Tuple, List, Dict,
     Union,
 )
 
+import comma
 from loguru import logger
 
 from shared import *
@@ -48,7 +51,7 @@ def get_path(file: str = None,
         assignment (Assignment): The assignment.
             Default is None.
         folder (str): The output folder.
-            Default is `OUTPUT_FOLDER`.
+            Default is None.
         create (bool): Whether to create missing directories.
             Default is True.
 
@@ -81,8 +84,29 @@ def get_path(file: str = None,
 
 # ===========================================================================
 
+def save_csv(data: List[Dict[str, Any]],
+             filepath: str,
+             description: str = 'data',
+             log: bool = False
+             ):
+    """Saves data into a csv file.
+
+    Args:
+        data (List[Dict[str, Any]]): The data.
+        filepath (str): The path of the file.
+        description (str): The description of the log message.
+            Default is 'data'.
+        log (bool): Whether to show log messages.
+            Default is False.
+    """
+
+    if log: logger.info('Saving {} to "{}"', description, filepath)
+    comma.dump(data, filepath)
+
+
+# ===========================================================================
+
 def validate_file(file: str,
-                  folder: str = OUTPUT_FOLDER,
                   exts: Sequence[str] = DEFAULT_EXTS,
                   log: bool = False
                   ) -> Union[Tuple[str, str], Tuple[None, None]]:
@@ -90,8 +114,6 @@ def validate_file(file: str,
 
     Args:
         file (str): The file to validate.
-        folder (str): The output folder.
-            Default is `OUTPUT_FOLDER`.
         exts (Sequence[str]): The valid extensions.
             Default is `DEFAULT_EXTS`.
         log (bool): Whether to show log messages.
@@ -106,7 +128,7 @@ def validate_file(file: str,
     # check file existence
     filepath = file
     if not os.path.exists(filepath):
-        filepath = os.path.join(folder, filepath)
+        filepath = os.path.join(OUTPUT_FOLDER, filepath)
         if not os.path.exists(filepath):
             msg = f'File "{file}" not found'
             if not log: raise RuntimeError(msg)

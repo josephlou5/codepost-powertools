@@ -964,6 +964,9 @@ def main(course_name: str,
             Default is False.
         log (bool): Whether to show log messages.
             Default is False.
+
+    Raises:
+        ValueError: If `author` is an invalid grader in the given course.
     """
 
     if log and from_file and not apply:
@@ -1014,8 +1017,7 @@ def main(course_name: str,
                 applying += apply_comments
                 for_file += file_comments
 
-            if log: logger.info('Saving rubric comments to "{}" file', filepath)
-            comma.dump(for_file, filepath)
+            save_csv(for_file, filepath, description='rubric comments', log=log)
 
     if apply:
         if len(applying) == 0:

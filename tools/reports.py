@@ -14,7 +14,6 @@ from typing import (
 
 import codepost
 import codepost.errors
-import comma
 from loguru import logger
 
 from shared import *
@@ -499,16 +498,15 @@ def save_ids(course: Course,
             Default is False.
     """
 
-    path = get_path(file=REPORT_IDS_FILE, course=course, assignment=assignment, folder=REPORTS_FOLDER)
-    if log: logger.info('Saving report ids to "{}"', path)
-
     data = list()
     for student, i in ids.items():
         data.append({
             'ID': i,
             'student': student,
         })
-    comma.dump(data, path)
+
+    filepath = get_path(file=REPORT_IDS_FILE, course=course, assignment=assignment, folder=REPORTS_FOLDER)
+    save_csv(data, filepath, description='report ids', log=log)
 
 
 def save_reports(course: Course,
