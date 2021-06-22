@@ -1,6 +1,6 @@
 """
 shared.py
-Shared methods.
+Shared.
 """
 
 __all__ = [
@@ -13,26 +13,18 @@ __all__ = [
 
 from typing import Tuple
 
-from codepost.models.assignments import Assignments
-from codepost.models.comments import Comments
-from codepost.models.courses import Courses
-from codepost.models.files import Files
-from codepost.models.rubric_categories import RubricCategories
-from codepost.models.rubric_comments import RubricComments
-from codepost.models.submissions import Submissions
+from codepost.models.courses import Courses as Course
+from codepost.models.rubric_categories import RubricCategories as RubricCategory
+from codepost.models.rubric_comments import RubricComments as RubricComment
+from codepost.models.assignments import Assignments as Assignment
+from codepost.models.submissions import Submissions as Submission
+from codepost.models.files import Files as File
+from codepost.models.comments import Comments as Comment
 
 # ===========================================================================
 
 # types
 
 Color = Tuple[int, int, int]
-
-Course = Courses
-Assignment = Assignments
-Submission = Submissions
-File = Files
-Comment = Comments
-RubricCategory = RubricCategories
-RubricComment = RubricComments
 
 # ===========================================================================

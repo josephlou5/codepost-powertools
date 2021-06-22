@@ -615,9 +615,9 @@ def main(course_name: str,
         course_period (str): The course period.
         assignment_name (str): The name of the assignment to apply the reports to.
             Will track rubric comments for all preceding assignments.
-        from_file (bool): Whether to read the comments from a file.
+        from_file (bool): Whether to read the reports from files.
             Default is False.
-        apply (bool): Whether to apply the comments.
+        apply (bool): Whether to apply the reports to the submissions.
             Default is False.
         log (bool): Whether to show log messages.
             Default is False.

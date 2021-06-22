@@ -30,7 +30,6 @@ SHEET_HEADERS = {
     'max points': 'Max',
 
     'name': 'Name',
-    'new name': 'New name',
     'tier': 'Tier',
     'point delta': 'Points',
     'caption': 'Grader Caption',

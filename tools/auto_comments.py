@@ -28,7 +28,6 @@ from shared_codepost import *
 from shared_output import *
 
 # TODO: parse TESTS.txt to automate checkstyle comments and others
-# TODO: testing
 
 # ===========================================================================
 
@@ -134,7 +133,7 @@ class AutoComment:
             end_char (int): The end char index of the comment.
                 Default is 0.
             missing (bool): Whether this comment is for a missing file.
-                Defautl is False.
+                Default is False.
 
         Raises:
             ValueError: If `name` is not one of the auto comments.
@@ -981,7 +980,7 @@ def main(course_name: str,
     success, assignment = get_assignment(course, assignment_name, log=log)
     if not success: return
 
-    success, author = validate_grader(course, author)
+    success = validate_grader(course, author)
     if not success:
         msg = f'Invalid comment author "{author}"'
         if not log:

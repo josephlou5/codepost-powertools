@@ -1,6 +1,6 @@
 """
 tier_report.py
-Generates a report of the comment tiers.
+Generates a report of tier comments usage.
 """
 
 # ===========================================================================

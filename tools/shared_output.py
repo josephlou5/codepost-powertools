@@ -15,8 +15,8 @@ __all__ = [
 import os
 from typing import (
     Any,
-    Sequence, Tuple, List, Dict,
-    Union,
+    Sequence, List, Dict,
+    Optional,
 )
 
 import comma
@@ -40,7 +40,7 @@ def get_path(file: str = None,
              folder: str = None,
              create: bool = True
              ) -> str:
-    """Gets the path "output/[course]/[assignment]/[folder]/[file]".
+    """Gets the path "[course]/[assignment]/[folder]/[file]".
     If either of `course` or `assignment` is None, neither will be included.
 
     Args:
@@ -59,9 +59,7 @@ def get_path(file: str = None,
         str: The path of the file.
     """
 
-    path = OUTPUT_FOLDER
-    if create and not os.path.exists(path):
-        os.mkdir(path)
+    path = ''
 
     if course is not None and assignment is not None:
         path = os.path.join(path, course_str(course))
@@ -109,7 +107,7 @@ def save_csv(data: List[Dict[str, Any]],
 def validate_file(file: str,
                   exts: Sequence[str] = DEFAULT_EXTS,
                   log: bool = False
-                  ) -> Union[Tuple[str, str], Tuple[None, None]]:
+                  ) -> Optional[str]:
     """Validates a file.
 
     Args:
@@ -120,29 +118,26 @@ def validate_file(file: str,
             Default is False.
 
     Returns:
-        Union[Tuple[str, str], Tuple[None, None]]:
-            If the validation is successful, returns the filepath and the file extension.
-            If the validation is unsuccessful, returns None and None.
+        Optional[str]:
+            If the validation is successful, returns the file extension.
+            If the validation is unsuccessful, returns None.
     """
 
     # check file existence
-    filepath = file
-    if not os.path.exists(filepath):
-        filepath = os.path.join(OUTPUT_FOLDER, filepath)
-        if not os.path.exists(filepath):
-            msg = f'File "{file}" not found'
-            if not log: raise RuntimeError(msg)
-            logger.error(msg)
-            return None, None
+    if not os.path.exists(file):
+        msg = f'File "{file}" not found'
+        if not log: raise RuntimeError(msg)
+        logger.error(msg)
+        return None
 
     # check file extension
-    _, ext = os.path.splitext(filepath)
+    _, ext = os.path.splitext(file)
     if ext not in exts:
         msg = f'Unsupported file type "{ext}"'
         if not log: raise RuntimeError(msg)
         logger.error(msg)
-        return None, None
+        return None
 
-    return filepath, ext
+    return ext
 
 # ===========================================================================

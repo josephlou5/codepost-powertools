@@ -10,7 +10,7 @@ __all__ = [
     # methods
     'log_in_codepost',
     'get_course', 'get_assignment',
-    'course_str', 'make_email', 'validate_grader',
+    'course_str', 'validate_grader',
 ]
 
 # ===========================================================================
@@ -26,12 +26,12 @@ from loguru import logger
 
 from shared import *
 
-
 # ===========================================================================
 
 # tier format globals
 TIER_FORMAT = '\\[T{tier}\\] {text}'
 TIER_PATTERN = re.compile(r'\\\[T(\d+)\\]')
+
 
 # ===========================================================================
 
@@ -90,7 +90,7 @@ def get_course(name: str, period: str, log: bool = False) -> Tuple[bool, Optiona
             return True, course
 
     msg = f'No course found with name "{name}" and period "{period}"'
-    if not log: raise RuntimeError(msg)
+    if not log: raise ValueError(msg)
     logger.error(msg)
     return False, None
 
@@ -117,7 +117,7 @@ def get_assignment(course: Course, assignment_name: str, log: bool = False) -> T
             return True, assignment
 
     msg = f'Assignment "{assignment_name}" not found'
-    if not log: raise RuntimeError(msg)
+    if not log: raise ValueError(msg)
     logger.error(msg)
     return False, None
 
@@ -140,34 +140,16 @@ def course_str(course: Course, delim: str = ' ') -> str:
 
 # ===========================================================================
 
-def make_email(netid: str) -> str:
-    """Turns a netid into an email.
-
-    Args:
-        netid (str): The netid.
-
-    Returns:
-        str: The email.
-    """
-
-    if netid.endswith('@princeton.edu'):
-        return netid
-    return netid + '@princeton.edu'
-
-
-def validate_grader(course: Course, grader: str) -> Tuple[bool, str]:
+def validate_grader(course: Course, grader: str) -> bool:
     """Validates a grader for a course.
 
     Args:
         course (Course): The course.
-        grader (str): The grader. Accepts netid or email.
+        grader (str): The grader email.
 
     Returns:
-        Tuple[bool, str]: Whether the grader is a valid grader in the course,
-            and the grader as an email.
+        bool: Whether the grader is a valid grader in the course.
     """
-
-    grader = make_email(grader)
-    return grader in codepost.roster.retrieve(course.id).graders, grader
+    return grader in codepost.roster.retrieve(course.id).graders
 
 # ===========================================================================

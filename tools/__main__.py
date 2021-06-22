@@ -11,12 +11,14 @@ from functools import update_wrapper
 import click
 from loguru import logger
 
-import auto_comments
-import reports
+# rubric group
 import rubric_to_sheet
 import sheet_to_rubric
-import tier_report
+# comments group
+import auto_comments
+import reports
 import num_comments
+import tier_report
 
 # ===========================================================================
 
@@ -94,13 +96,12 @@ def wrap(f):
 @click.argument('sheet_name', type=str, required=True)
 @click.argument('start_assignment', type=str, required=False)
 @click.argument('end_assignment', type=str, required=False)
-# TODO: "Default is False."?
 @click.option('-w', '--wipe', is_flag=True, default=False, flag_value=True,
-              help='Whether to wipe the existing worksheets.')
+              help='Whether to wipe the existing worksheets. Default is False.')
 @click.option('-r', '--replace', is_flag=True, default=False, flag_value=True,
-              help='Whether to replace the existing worksheets.')
+              help='Whether to replace the existing worksheets. Default is False.')
 @click.option('-ci', '--count-instances', is_flag=True, default=False, flag_value=True,
-              help='Whether to count the instances of the rubric comments.')
+              help='Whether to count the instances of the rubric comments. Default is False.')
 @wrap
 def export_cmd(**kwargs):
     rubric_to_sheet.main(**kwargs, log=True)
@@ -121,7 +122,7 @@ def export_cmd(**kwargs):
 @click.option('-d', '--delete-missing', is_flag=True, default=False, flag_value=True,
               help='Whether to delete the rubric comments not in the sheet. Default is False.')
 @click.option('-w', '--wipe', is_flag=True, default=False, flag_value=True,
-              help='Whether to wipe the existing rubric.. Default is False.')
+              help='Whether to wipe the existing rubric. Default is False.')
 @wrap
 def import_cmd(**kwargs):
     # TODO: test
@@ -161,10 +162,10 @@ def auto_comments_cmd(**kwargs):
 @click.argument('course_name', type=str, required=True)
 @click.argument('course_period', type=str, required=True)
 @click.argument('assignment_name', type=str, required=True)
-@click.option('-f', '--from-file', is_flag=True, default=False, flag_value=True,
-              help='Whether to read the comments from a file. Default is False.')
+@click.option('-f', '--from-files', is_flag=True, default=False, flag_value=True,
+              help='Whether to read the reports from files. Default is False.')
 @click.option('-a', '--apply', is_flag=True, default=False, flag_value=True,
-              help='Whether to apply the comments. Default is False.')
+              help='Whether to apply the reports to the submissions. Default is False.')
 @wrap
 def reports_cmd(**kwargs):
     # TODO: test
@@ -217,7 +218,7 @@ def tier_report_cmd(**kwargs):
 
 # ===========================================================================
 
-# miscellaneous group
+# miscellaneous
 
 # ===========================================================================
 

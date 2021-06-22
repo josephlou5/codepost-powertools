@@ -14,18 +14,13 @@ Some helpful codePost tools using the
 - `typing`
 
 ### Other Packages
+- `click`
 - `codepost`
 - `comma`
-- `click`
 - `loguru`
 
 ---
 
-## Usage
+## Documentation
 
-Get your [codePost API key](https://docs.codepost.io/docs/first-steps-with-the-codepost-python-sdk#2-obtaining-your-codepost-api-key)
-and save the `.codepost-config.yaml` or `codepost-config.yaml` file in the `tools` directory.
-
----
-
-Documentation coming soon.
+See this [Google Doc](https://docs.google.com/document/d/1pJgzDtm3-2EIdrse3dDHwYqjqqmeccIsHvx_NqW81qg/edit?usp=sharing). 
