@@ -1,6 +1,6 @@
 """
 num_comments.py
-Counts the number of (applied) comments.
+Counts the number of applied comments.
 """
 
 # ===========================================================================
@@ -30,12 +30,12 @@ def main(course_name: str,
          count_rubric: bool = True,
          count_custom: bool = True,
          search_all: bool = False,
-         search_claimed: bool = False,
+         search_finalized: bool = False,
+         search_drafts: bool = False,
          search_unclaimed: bool = False,
-         search_finalized: bool = True,
          log: bool = False
          ) -> Dict[int, List[Submission]]:
-    """Counts the number of (applied) comments.
+    """Counts the number of applied comments.
 
     Args:
         course_name (str): The course name.
@@ -45,14 +45,14 @@ def main(course_name: str,
             Default is True.
         count_custom (bool): Whether to count custom comments.
             Default is True.
-        search_all (bool): Whether to search all submissions.
+        search_all (bool): Search all submissions.
             Default is False.
-        search_claimed (bool): Whether to search the claimed submissions.
+        search_finalized (bool): Search the finalized submissions.
             Default is False.
-        search_unclaimed (bool): Whether to search the unclaimed submissions.
+        search_drafts (bool): Search the draft submissions.
             Default is False.
-        search_finalized (bool): Whether to search the finalized submissions.
-            Default is True.
+        search_unclaimed (bool): Search the unclaimed submissions.
+            Default is False.
         log (bool): Whether to show log messages.
             Default is False.
 
@@ -63,7 +63,7 @@ def main(course_name: str,
     if (count_rubric, count_custom) == (False,) * 2:
         if log: logger.info('All comment type flags are false; all submissions will have 0 comments')
         return dict()
-    if (search_all, search_claimed, search_unclaimed, search_finalized) == (False,) * 4:
+    if (search_all, search_finalized, search_drafts, search_unclaimed) == (False,) * 4:
         if log: logger.info('All search flags are false; no submissions found')
         return dict()
 
@@ -79,24 +79,23 @@ def main(course_name: str,
     submissions: Dict[int, List[Submission]] = dict()
 
     if log:
-        if search_all or (search_claimed and search_unclaimed and search_finalized):
+        if search_all or (search_finalized and search_drafts and search_unclaimed):
             adj = 'all'
         else:
             # two flags are true
-            if search_claimed and search_unclaimed:
-                adj = 'unfinalized'
-            elif search_claimed and search_finalized:
+            if search_finalized and search_drafts:
                 adj = 'claimed'
-            elif search_unclaimed and search_finalized:
+            elif search_finalized and search_unclaimed:
                 adj = 'non-draft'
+            elif search_drafts and search_unclaimed:
+                adj = 'unfinalized'
             # one flag is true
-            elif search_claimed:
-                # since `search_finalized` is false, it's all unfinalized claimed submissions (drafts)
+            elif search_finalized:
+                adj = 'finalized'
+            elif search_drafts:
                 adj = 'draft'
             elif search_unclaimed:
                 adj = 'unclaimed'
-            elif search_finalized:
-                adj = 'finalized'
             # no flags are true; shouldn't happen
             else:
                 adj = 'never happens'
@@ -105,9 +104,11 @@ def main(course_name: str,
     data = list()
 
     for submission in assignment.list_submissions():
-        if search_claimed and submission.grader is None:
-            continue
-        if search_finalized and not submission.isFinalized:
+
+        # if a search flag is false, don't allow those submissions
+        if ((not search_finalized and submission.isFinalized) or
+                (not search_drafts and (submission.grader is not None and not submission.isFinalized)) or
+                (not search_unclaimed and submission.grader is None)):
             continue
 
         # count comments
@@ -146,6 +147,8 @@ def main(course_name: str,
     filepath = get_path(file=COMMENTS_FILE, course=course, assignment=assignment)
     save_csv(data, filepath, description='counts', log=log)
 
+    # sort keys in ascending order
+    submissions = {k: v for (k, v) in sorted(submissions.items())}
     return submissions
 
 # ===========================================================================
