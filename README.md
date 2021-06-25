@@ -18,6 +18,7 @@ Some helpful codePost tools using the
 - `codepost`
 - `comma`
 - `loguru`
+- `pygame` (only used in the `stats` subcommand)
 
 ---
 
