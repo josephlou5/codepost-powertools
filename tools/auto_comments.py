@@ -981,12 +981,7 @@ def main(course_name: str,
     if not success: return
 
     success = validate_grader(course, author)
-    if not success:
-        msg = f'Invalid comment author "{author}"'
-        if not log:
-            raise ValueError(msg)
-        logger.error(msg)
-        return
+    if not success: return
 
     filepath = get_path(file=COMMENTS_FILE, course=course, assignment=assignment)
 

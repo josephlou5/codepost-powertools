@@ -5,12 +5,14 @@ Shared methods for codePost.
 
 __all__ = [
     # globals
+    'DUMMY_GRADER',
     'TIER_FORMAT', 'TIER_PATTERN',
 
     # methods
     'log_in_codepost',
     'get_course', 'get_assignment',
-    'course_str', 'validate_grader',
+    'course_str',
+    'validate_grader', 'validate_student',
 ]
 
 # ===========================================================================
@@ -28,14 +30,19 @@ from shared import *
 
 # ===========================================================================
 
-# tier format globals
+# globals
+
+DUMMY_GRADER = 'jdlou+dummygrader@princeton.edu'
+
+# tier format
 TIER_FORMAT = '\\[T{tier}\\] {text}'
 TIER_PATTERN = re.compile(r'\\\[T(\d+)\\]')
 
 
 # ===========================================================================
 
-def log_in_codepost(log: bool = False) -> bool:
+def log_in_codepost(log: bool = False
+                    ) -> bool:
     """Logs in to codePost using the YAML config file.
 
     Args:
@@ -65,7 +72,10 @@ def log_in_codepost(log: bool = False) -> bool:
 
 # ===========================================================================
 
-def get_course(name: str, period: str, log: bool = False) -> Tuple[bool, Optional[Course]]:
+def get_course(name: str,
+               period: str,
+               log: bool = False
+               ) -> Tuple[bool, Optional[Course]]:
     """Gets a course from codePost.
     If there are duplicates, returns the first one found.
 
@@ -97,7 +107,10 @@ def get_course(name: str, period: str, log: bool = False) -> Tuple[bool, Optiona
 
 # ===========================================================================
 
-def get_assignment(course: Course, assignment_name: str, log: bool = False) -> Tuple[bool, Optional[Assignment]]:
+def get_assignment(course: Course,
+                   assignment_name: str,
+                   log: bool = False
+                   ) -> Tuple[bool, Optional[Assignment]]:
     """Get an assignment from a course.
 
     Args:
@@ -124,7 +137,9 @@ def get_assignment(course: Course, assignment_name: str, log: bool = False) -> T
 
 # ===========================================================================
 
-def course_str(course: Course, delim: str = ' ') -> str:
+def course_str(course: Course,
+               delim: str = ' '
+               ) -> str:
     """Returns a str representation of a course.
 
     Args:
@@ -140,16 +155,51 @@ def course_str(course: Course, delim: str = ' ') -> str:
 
 # ===========================================================================
 
-def validate_grader(course: Course, grader: str) -> bool:
+def validate_grader(course: Course,
+                    grader: str,
+                    log: bool = False,
+                    ) -> bool:
     """Validates a grader for a course.
 
     Args:
         course (Course): The course.
         grader (str): The grader email.
+        log (bool): Whether to show log messages.
+            Default is False.
 
     Returns:
         bool: Whether the grader is a valid grader in the course.
     """
-    return grader in codepost.roster.retrieve(course.id).graders
+
+    if grader in codepost.roster.retrieve(course.id).graders:
+        return True
+    msg = f'Invalid grader "{grader}" in {course_str(course)}'
+    if not log: raise ValueError(msg)
+    logger.error(msg)
+    return False
+
+
+def validate_student(course: Course,
+                     student: str,
+                     log: bool = False,
+                     ) -> bool:
+    """Validates a student for a course.
+
+    Args:
+        course (Course): The course.
+        student (str): The student email.
+        log (bool): Whether to show log messages.
+            Default is False.
+
+    Returns:
+        bool: Whether the student is a valid student in the course.
+    """
+
+    if student in codepost.roster.retrieve(course.id).students:
+        return True
+    msg = f'Invalid student "{student}" in {course_str(course)}'
+    if not log: raise ValueError(msg)
+    logger.error(msg)
+    return False
 
 # ===========================================================================
