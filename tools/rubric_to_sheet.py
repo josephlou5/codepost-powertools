@@ -18,10 +18,6 @@ from shared import *
 from shared_codepost import *
 from shared_gspread import *
 
-__all__ = [
-    'main',
-]
-
 # ===========================================================================
 
 HEADERS = (

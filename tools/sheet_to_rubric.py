@@ -18,10 +18,6 @@ from shared import *
 from shared_codepost import *
 from shared_gspread import *
 
-__all__ = [
-    'main',
-]
-
 # ===========================================================================
 
 SHEET_HEADERS = {
@@ -68,8 +64,8 @@ def get_worksheets(sheet: GSpreadsheet,
 
     if log: logger.info('Finding worksheets for each assignment')
 
-    if end_sheet < start_sheet:
-        end_sheet = start_sheet
+    start_sheet = max(0, start_sheet)
+    end_sheet = max(start_sheet, end_sheet)
 
     worksheets = {a.id: None for a in assignments}
 
