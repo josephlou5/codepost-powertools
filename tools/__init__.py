@@ -24,6 +24,9 @@ __all__ = [
     'open_submissions',
     'find',
     'failed',
+
+    # miscellaneous
+    'screenshot',
 ]
 
 # ===========================================================================
@@ -44,5 +47,7 @@ from finalize import main as finalize
 from open_submissions import main as open_submissions
 from find import main as find
 from failed import main as failed
+# miscellaneous
+from screenshot import main as screenshot
 
 # ===========================================================================

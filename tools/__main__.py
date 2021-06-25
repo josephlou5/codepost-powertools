@@ -30,6 +30,8 @@ import open_submissions
 import find
 import failed
 import stats
+# miscellaneous
+import screenshot
 
 # ===========================================================================
 
@@ -380,6 +382,34 @@ def stats_cmd(**kwargs):
 
 # miscellaneous
 
+@click.command(
+    'screenshot',
+    **CTX_SETTINGS,
+    help='Screenshots a codePost comment.'
+)
+@click.argument('link', type=str, required=False)
+@click.option('-f', '--file', type=str,
+              help='A file to read submission links from.')
+@click.option('-t', '--timeout', type=click.IntRange(30, None), default=60,
+              help='Timeout limit in seconds. Must be at least 30. Default is 60 seconds.')
+@click.option('-nt', '--no-timeout', is_flag=True, default=False, flag_value=True,
+              help='Whether to run without timeout. Default is False.')
+@click.option('-e', '--explanation', is_flag=True, default=False, flag_value=True,
+              help='Whether to show the comment explanation. Default is False.')
+@click.option('-fc', '--fit-to-comment', is_flag=True, default=False, flag_value=True,
+              help='Whether to fit the screenshot to the comment. Default is False.')
+@click.option('-o', '--one-line', is_flag=True, default=False, flag_value=True,
+              help='Whether to make the tattoo one line. Default is False.')
+@click.option('-c', '--corner', is_flag=True, default=False, flag_value=True,
+              help='Whether to optimize the corner of the tattoo. Default is False.')
+@click.option('-a', '--adjust', is_flag=True, default=False, flag_value=True,
+              help='Whether to adjust the tattoo to not overlap the comment. Default is False.')
+@wrap
+def screenshot_cmd(**kwargs):
+    # TODO: test
+    screenshot.main(**kwargs, log=True)
+
+
 # ===========================================================================
 
 # groups
@@ -418,7 +448,9 @@ grading = NaturalOrderGroup(commands=[
     failed_cmd,
     stats_cmd,
 ])
-# miscellaneous = NaturalOrderGroup(commands=[])
+miscellaneous = NaturalOrderGroup(commands=[
+    screenshot_cmd,
+])
 
 
 # ===========================================================================
@@ -434,6 +466,7 @@ cli = NaturalOrderCollection(sources=[
     rubric,
     comments,
     grading,
+    miscellaneous,
 ])
 
 # ===========================================================================
