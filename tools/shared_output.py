@@ -20,12 +20,13 @@ from typing import (
     Optional,
 )
 
-import codepost.errors
 import comma
 from loguru import logger
 
 from shared import *
-from shared_codepost import course_str
+from shared_codepost import (
+    course_str, get_submission
+)
 
 # ===========================================================================
 
@@ -36,7 +37,8 @@ DEFAULT_EXTS = ('.txt', '.csv')
 
 # ===========================================================================
 
-def get_path(file: str = None,
+def get_path(path: str = '',
+             file: str = None,
              course: Course = None,
              assignment: Assignment = None,
              folder: str = None,
@@ -46,6 +48,8 @@ def get_path(file: str = None,
     If either of `course` or `assignment` is None, neither will be included.
 
     Args:
+        path (str): The starting path.
+            Default is ''.
         file (str): The file.
             Default is None.
         course (Course): The course.
@@ -57,11 +61,15 @@ def get_path(file: str = None,
         create (bool): Whether to create missing directories.
             Default is True.
 
+    Raises:
+        OSError: If `path` does not exist.
+
     Returns:
         str: The path of the file.
     """
 
-    path = ''
+    if not os.path.exists(path):
+        raise OSError(f'`path` does not exist: "{path}"')
 
     if course is not None and assignment is not None:
         path = os.path.join(path, course_str(course))
@@ -190,12 +198,9 @@ def read_submissions_from_file(file: str,
     # gets submissions
     submissions = list()
     for s_id in ids:
-        try:
-            submissions.append(codepost.submission.retrieve(s_id))
-        except codepost.errors.NotFoundAPIError:
-            if log: logger.warning('Invalid submission ID: {}', s_id)
-        except codepost.errors.AuthorizationAPIError:
-            if log: logger.warning('No access to submission: {}', s_id)
+        submission = get_submission(s_id, log=log)
+        if submission is not None:
+            submissions.append(submission)
 
     if log: logger.debug('Found {} submissions', len(submissions))
 

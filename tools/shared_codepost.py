@@ -11,6 +11,7 @@ __all__ = [
     # methods
     'log_in_codepost',
     'get_course', 'get_assignment',
+    'get_submission', 'get_comment',
     'course_str',
     'validate_grader', 'validate_student',
 ]
@@ -24,6 +25,7 @@ from typing import (
 )
 
 import codepost
+import codepost.errors
 from loguru import logger
 
 from shared import *
@@ -133,6 +135,66 @@ def get_assignment(course: Course,
     if not log: raise ValueError(msg)
     logger.error(msg)
     return False, None
+
+
+# ===========================================================================
+
+def get_submission(submission_id: int,
+                   log: bool = False
+                   ) -> Optional[Submission]:
+    """Gets a submission.
+
+    Args:
+        submission_id (int): The submission id.
+        log (bool): Whether to show log messages.
+            Default is False.
+
+    Returns:
+        Optional[Submission]:
+            If the retrieval was successful, returns the submission.
+            If the retrieval was unsuccessful, returns None.
+    """
+
+    try:
+        return codepost.submission.retrieve(submission_id)
+    except codepost.errors.NotFoundAPIError:
+        if log: logger.error('Invalid submission id: {}', submission_id)
+    except codepost.errors.AuthorizationAPIError:
+        if log: logger.error('No access to submission: {}', submission_id)
+    return None
+
+
+def get_comment(comment_id: int,
+                submission_id: int = None,
+                log: bool = False
+                ) -> Optional[Comment]:
+    """Gets a comment.
+
+    Args:
+        comment_id (int): The comment id.
+        submission_id (int): The submission id for log messages.
+            If not given, not displayed.
+            Default is None.
+        log (bool): Whether to show log messages.
+            Default is False.
+
+    Returns:
+        Optional[Comment]:
+            If the retrieval was successful, returns the comment.
+            If the retrieval was unsuccessful, returns None.
+    """
+
+    ids_str = str(comment_id)
+    if submission_id is not None:
+        ids_str = str(submission_id) + ':' + ids_str
+
+    try:
+        return codepost.comment.retrieve(comment_id)
+    except codepost.errors.NotFoundAPIError:
+        if log: logger.error('Invalid comment id: {}', ids_str)
+    except codepost.errors.AuthorizationAPIError:
+        if log: logger.error('No access to comment: {}', ids_str)
+    return None
 
 
 # ===========================================================================
