@@ -8,6 +8,7 @@ __all__ = [
     'get_path',
     'save_csv',
     'validate_file',
+    'read_submissions_from_file',
 ]
 
 # ===========================================================================
@@ -19,6 +20,7 @@ from typing import (
     Optional,
 )
 
+import codepost.errors
 import comma
 from loguru import logger
 
@@ -139,5 +141,64 @@ def validate_file(file: str,
         return None
 
     return ext
+
+
+# ===========================================================================
+
+def read_submissions_from_file(file: str,
+                               log: bool = False
+                               ) -> List[Submission]:
+    """Reads submission ids from a file.
+
+    Args:
+        file (str): The file.
+        log (bool): Whether to show log messages.
+            Default is False.
+
+    Returns:
+        List[Submission]: The submissions.
+    """
+
+    if log: logger.info('Reading submissions from file "{}"', file)
+
+    # validate file
+    ext = validate_file(file, log=log)
+    if ext is None:
+        return list()
+
+    ids = list()
+
+    # txt file: one submission id per line
+    if ext == '.txt':
+        with open(file, 'r') as f:
+            for line in f.read().split('\n'):
+                line = line.strip()
+                if line.isdigit():
+                    ids.append(int(line))
+    # csv file: "submission_id" column
+    elif ext == '.csv':
+        data = comma.load(file, force_header=True)
+        S_ID_KEY = 'submission_id'
+        if S_ID_KEY not in data.header:
+            if log: logger.warning('File "{}" does not have a "{}" column', file, S_ID_KEY)
+            return list()
+        for val in data[S_ID_KEY]:
+            s_id = val.strip()
+            if s_id.isdigit():
+                ids.append(int(s_id))
+
+    # gets submissions
+    submissions = list()
+    for s_id in ids:
+        try:
+            submissions.append(codepost.submission.retrieve(s_id))
+        except codepost.errors.NotFoundAPIError:
+            if log: logger.warning('Invalid submission ID: {}', s_id)
+        except codepost.errors.AuthorizationAPIError:
+            if log: logger.warning('No access to submission: {}', s_id)
+
+    if log: logger.debug('Found {} submissions', len(submissions))
+
+    return submissions
 
 # ===========================================================================
