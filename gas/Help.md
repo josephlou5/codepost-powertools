@@ -220,4 +220,4 @@ using an Apps Script `Ui` object.
 
 If you wish to write your own error handler, make sure to handle the case of a
 Powertools exception as well as the case of a regular error. For example, see
-[`catchError()`](4_Frontend.js#L170).
+[`catchError()`](4_Frontend.js#L173).
