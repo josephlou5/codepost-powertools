@@ -71,7 +71,7 @@ should look like the following:
     "libraries": [
       {
         "userSymbol": "Powertools",
-        "version": "2",
+        "version": "X",
         "libraryId": "1w-ocEuMf4xcp9ygSSCf4KxzCvBkiUq6YXwUmEa0y0XugCCbST2kP1Ar-"
       }
     ]
