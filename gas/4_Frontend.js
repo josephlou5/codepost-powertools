@@ -325,6 +325,6 @@ function showHelp() {
     "Powertools Help",
     "Please see the Powertools repository on GitHub for help and " +
       "documentation:\n\n" +
-      "https://github.com/josephlou5/codepost-powertools/blob/main/gas/Help.md"
+      "https://github.com/josephlou5/codepost-powertools/blob/main/gas/README.md"
   );
 }
